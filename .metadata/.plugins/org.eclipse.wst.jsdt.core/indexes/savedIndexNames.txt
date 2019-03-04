@@ -1,7 +1,0 @@
-INDEX VERSION 1.4+/Users/vbn/dev/java/pori-workspace/.metadata/.plugins/org.eclipse.wst.jsdt.core/indexes
-2664277621.index
-859282674.index
-1129263497.index
-2093937004.index
-1127608055.index
-1117834360.index

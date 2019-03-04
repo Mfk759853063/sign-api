@@ -1,6 +1,0 @@
-package com.porui.webapi.system.delayDefence;
-
-public interface DelayAlarmServiceCallback {
-
-	void delayAlarmCallback(Boolean needAlarm) throws Exception;
-}
