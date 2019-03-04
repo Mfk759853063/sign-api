@@ -1,0 +1,90 @@
+package com.porui.webapi.system.service.delayDefence;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
+
+import com.porui.hjl.app.crestron.service.IAppService;
+import com.porui.hjl.commons.cache.RedisUtils;
+import com.porui.hjl.provider.user.entity.UMRoom;
+
+@Component
+public class DelayAlarmService {
+	
+	private static Logger logger= LoggerFactory.getLogger(DelayAlarmService.class);
+	
+	@Autowired
+    private static IAppService appService;
+	
+	public Boolean delayAlarm(UMRoom room) throws Exception {
+		if (isExistFlag(room) && getFlag(room) == 0) {
+			logger.info("放弃这此的报警消息，原因不是布防状态");
+			return false;
+		}
+		if (isExistFlag(room) && getFlag(room) == 1) {
+			logger.info("放弃这此的报警消息，原因是正在处理流程");
+			return false;
+		}
+		if (isExistFlag(room) && getFlag(room) == 2) {
+			logger.info("放弃这此的报警消息，原因是选择了这次忽略");
+			return false;
+		}
+		
+		// 设置一个过期时间
+		Integer seconds = Integer.parseInt(room.getDelayAlarmTime());
+		logger.info("延迟时间"+room.getDelayAlarmTime());
+		logger.info("当前线程"+Thread.currentThread().getName());
+		// 设置报警状态
+		setFlag(room, 1, seconds + 3);
+		// 同步消息给大屏
+		String data = "syncAlarmAlert" + "1" + "syncAlarmAlert";
+		logger.info("同步是否是误报警给大屏结果："+appService.sentToPad(room.getPadMac(), data) + "-----" + data);
+		// 等待
+		Thread.currentThread().sleep(seconds * 1000);
+		// 最新的布防状态
+		int defenceStatus = RedisUtils.instance().get(room.getId().getBytes());
+		logger.info("延迟报警等待结束，当前布防状态{}",defenceStatus);
+		if ((isExistFlag(room) && getFlag(room) == 1) &&
+			2 == defenceStatus) {
+			//未忽略并且是布防状态
+			delFlag(room);
+			return true;
+		}
+		return false;
+
+	}
+	
+	public Integer getFlag (UMRoom room) {
+		if (RedisUtils.instance().get("needIgnoreAlarmRoom:"+room.getId()) != null) {
+			String string = RedisUtils.instance().get("needIgnoreAlarmRoom:"+room.getId());
+			return Integer.parseInt(string);
+		}
+		return 0;
+	}
+	
+	public Boolean isExistFlag(UMRoom room) {
+		return RedisUtils.instance().exists("needIgnoreAlarmRoom:"+room.getId());
+	}
+	
+	//	 flag 0 撤防 1处理中 2 忽略
+	public void setFlag (UMRoom room, Integer ignoreFlag, Integer second) {
+		if (second == -1) {
+			long ttl = RedisUtils.instance().getTTL("needIgnoreAlarmRoom:"+room.getId());
+			if (ttl == 0) {
+				return;
+			}
+			RedisUtils.instance().setex("needIgnoreAlarmRoom:"+room.getId(), String.valueOf(ignoreFlag), (int)ttl);
+		} else {
+			RedisUtils.instance().setex("needIgnoreAlarmRoom:"+room.getId(), String.valueOf(ignoreFlag), second);
+		}
+		
+	}
+	
+	public void delFlag(UMRoom room) {
+		RedisUtils.instance().del("needIgnoreAlarmRoom:"+room.getId());
+	}
+	
+	
+
+}

@@ -1,0 +1,156 @@
+package com.porui.webapi.system;
+
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.context.ApplicationContext;
+import org.springframework.context.annotation.ImportResource;
+import org.springframework.core.env.Environment;
+import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
+
+import com.alibaba.dubbo.common.json.JSON;
+import com.porui.hjl.provider.res.entity.community.RSCommunity;
+import com.porui.hjl.provider.res.entity.community.RSCommunitySafetyInfo;
+import com.porui.hjl.provider.res.service.community.ICommunitySafetyInfoService;
+import com.porui.hjl.provider.res.service.community.ICommunityService;
+import com.porui.hjl.provider.res.service.safety.IAlarmMessageService;
+import com.porui.hjl.provider.res.service.safety.IDeviceService;
+import com.porui.hjl.provider.user.service.IRoomService;
+import com.porui.webapi.system.delayDefence.DelayAlarmService;
+import com.porui.webapi.system.socket.MessagePushSocketServer;
+import com.porui.webapi.system.socket.mqtt.MqttMsg;
+import com.porui.webapi.system.socket.mqtt.MqttSocketClient;
+import com.porui.webapi.system.util.GTPushtoSingle;
+import com.porui.webapi.system.util.GTpush4HCC;
+import com.porui.webapi.system.util.LeChengUtils;
+import com.porui.webapi.system.ys.YsServerListen;
+
+/**
+ * Created by pichun on 2016-09-09.
+ */
+@SpringBootApplication
+@ImportResource({"classpath:dubbo/dubbo-consumer.xml"})
+//@EnableTransactionManagement
+public class Application{	
+	
+    /**
+     * The entry point of application.
+     *
+     * @param args the input arguments
+     */
+    public static void main(String[] args) {
+        Logger logger= LoggerFactory.getLogger(Application.class);
+        logger.warn("teset-warn");
+        logger.trace("teset-trace");
+        logger.info("teset-info");
+        logger.error("teset-error");
+        logger.debug("teset-debug");
+        LoggerFactory.getLogger("testroll").info("testroll-test");
+        ApplicationContext ctx = SpringApplication.run(Application.class, args);
+        Environment environment = ctx.getEnvironment();
+        String property = environment.getProperty("spring.profiles.active");
+        IAlarmMessageService alarmMessageService = (IAlarmMessageService)ctx.getBean("alarmMessageService");
+        IDeviceService deviceService = (IDeviceService)ctx.getBean("deviceService");
+        IRoomService roomService = (IRoomService)ctx.getBean("roomService");
+//        DelayAlarmService delayAlarmService = (DelayAlarmService)ctx.getBean("delayAlarmService");
+        ICommunitySafetyInfoService communitySafetyInfoService = (ICommunitySafetyInfoService)ctx.getBean("communitySafetyInfoService");
+        try{
+        	if("prod".equals(property)){
+	            logger.info("启动萤石推送服务");
+	            Map<String,Object> param = new HashMap<String,Object>();
+	    		param.put("brandId", "1");
+	    		List<RSCommunitySafetyInfo> communitySafetyInfoList = new ArrayList<RSCommunitySafetyInfo>();
+				try {
+					communitySafetyInfoList = communitySafetyInfoService.getList(param);
+				} catch (Exception e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+				List<String> pushList = new ArrayList<String>();
+				for(RSCommunitySafetyInfo communitySafetyInfo : communitySafetyInfoList){
+					try {
+						if(!pushList.contains(communitySafetyInfo.getPushSecret())){
+							new YsServerListen(alarmMessageService,deviceService,roomService, communitySafetyInfo.getAppKey(),communitySafetyInfo.getAppSecret(),communitySafetyInfo.getPushSecret()).start();
+							logger.info("萤石推送服务启动成功!!!社区ID："+communitySafetyInfo.getComId());
+							logger.info("萤石推送相关账户信息："+JSON.json(communitySafetyInfo));
+							pushList.add(communitySafetyInfo.getPushSecret());
+						}
+					} catch (IOException e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					}
+				}
+        	}
+        }catch(Exception e){
+        	logger.info("萤石推送启动出错！",e);
+        }
+        
+        try {
+        	
+        	ICommunityService communityService = (ICommunityService)ctx.getBean("communityService");
+        	RSCommunity community = new RSCommunity();
+        	List<RSCommunity> communityList = communityService.getCommunity(community);
+        	for(RSCommunity entity : communityList){
+        		try{
+//        			ICommunitySafetyInfoService communitySafetyInfoService = (ICommunitySafetyInfoService)ctx.getBean("communitySafetyInfoService");
+					boolean result=LeChengUtils.setToken(entity.getId(),communitySafetyInfoService);
+					if(result){
+						logger.info("获取乐橙安防用户TOKEN成功");
+					}else{
+						logger.info("获取乐橙安防用户TOKEN失败");
+					}
+        		}catch(Exception e){
+        			logger.info("获取乐橙安防用户TOKEN失败！！！社区ID："+entity.getId());
+        		}
+        	}
+		} catch (Exception e) {
+			// TODO Auto-generated catch block
+			logger.info("获取乐橙安防用户TOKEN失败",e);
+		}
+        
+        GTPushtoSingle.getInstance().initConfig(environment.getProperty("GTappId"), environment.getProperty("GTappKey"), environment.getProperty("GTmasterSecret"));
+        GTpush4HCC.getInstance().initConfig(property);
+        MessagePushSocketServer.getInstance().start("8236", null);
+        logger.info("+++++++++++++++++++++++Webapi System start Succees++++++++++++++++++++++");
+ 
+        
+        new Thread(new Runnable() {
+			
+			@Override
+			public void run() {
+				try {
+					YsServerListen listen = new YsServerListen(alarmMessageService,deviceService,roomService, null, null, null);
+			        listen.test();
+			} catch (Exception e) {
+				logger.info("发送到中控数据解析出错！",e);
+			}
+			}
+		}).start();
+		
+	}
+    
+    new Thread(new Runnable() {
+		
+		@Override
+		public void run() {
+			try {
+				YsServerListen listen = new YsServerListen(alarmMessageService,deviceService,roomService, null, null, null);
+		        listen.test();
+		} catch (Exception e) {
+			logger.info("发送到中控数据解析出错！",e);
+		}
+		}
+	}).start();
+    
+    public void addInterceptors(InterceptorRegistry registry){
+    	//不适合app接口权限控制
+        //registry.addInterceptor(new AuthorizeSecurityInterceptor()).addPathPatterns("/**");
+    }   
+}

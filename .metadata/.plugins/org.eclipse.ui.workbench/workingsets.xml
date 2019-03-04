@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<workingSetManager>
+<workingSet editPageId="org.eclipse.jdt.internal.ui.DynamicSourcesWorkingSet" factoryID="org.eclipse.ui.internal.WorkingSetFactory" id="1547716952580_0" label="Java Main Sources" name="Java Main Sources">
+<item elementID="=cg-provider-user/src\/main\/java" factoryID="org.eclipse.jdt.ui.PersistableJavaElementFactory"/>
+<item elementID="=cg-provider-user/src\/main\/resources" factoryID="org.eclipse.jdt.ui.PersistableJavaElementFactory"/>
+<item elementID="=cg-provider-res/src\/main\/java" factoryID="org.eclipse.jdt.ui.PersistableJavaElementFactory"/>
+<item elementID="=cg-provider-res/src\/main\/resources" factoryID="org.eclipse.jdt.ui.PersistableJavaElementFactory"/>
+<item elementID="=cg-commons/src\/main\/java" factoryID="org.eclipse.jdt.ui.PersistableJavaElementFactory"/>
+<item elementID="=cg-commons/src\/main\/resources" factoryID="org.eclipse.jdt.ui.PersistableJavaElementFactory"/>
+<item elementID="=cg-webapi-system/src\/main\/java" factoryID="org.eclipse.jdt.ui.PersistableJavaElementFactory"/>
+<item elementID="=cg-webapi-system/src\/main\/resources" factoryID="org.eclipse.jdt.ui.PersistableJavaElementFactory"/>
+<item elementID="=cg-common-data/src\/main\/java" factoryID="org.eclipse.jdt.ui.PersistableJavaElementFactory"/>
+<item elementID="=cg-common-data/src\/main\/resources" factoryID="org.eclipse.jdt.ui.PersistableJavaElementFactory"/>
+<item elementID="=cg-common-web/src\/main\/java" factoryID="org.eclipse.jdt.ui.PersistableJavaElementFactory"/>
+<item elementID="=cg-common-web/src\/main\/resources" factoryID="org.eclipse.jdt.ui.PersistableJavaElementFactory"/>
+<item elementID="=cg-provider-sys/src\/main\/java" factoryID="org.eclipse.jdt.ui.PersistableJavaElementFactory"/>
+<item elementID="=cg-provider-sys/src\/main\/resources" factoryID="org.eclipse.jdt.ui.PersistableJavaElementFactory"/>
+<item elementID="=cg-common-config/src\/main\/java" factoryID="org.eclipse.jdt.ui.PersistableJavaElementFactory"/>
+<item elementID="=cg-common-config/src\/main\/resources" factoryID="org.eclipse.jdt.ui.PersistableJavaElementFactory"/>
+<item elementID="=cg-common-core/src\/main\/java" factoryID="org.eclipse.jdt.ui.PersistableJavaElementFactory"/>
+<item elementID="=cg-common-core/src\/main\/resources" factoryID="org.eclipse.jdt.ui.PersistableJavaElementFactory"/>
+</workingSet>
+<workingSet editPageId="org.eclipse.jdt.internal.ui.DynamicSourcesWorkingSet" factoryID="org.eclipse.ui.internal.WorkingSetFactory" id="1547716952596_1" label="Java Test Sources" name="Java Test Sources">
+<item elementID="=cg-provider-user/src\/test\/java" factoryID="org.eclipse.jdt.ui.PersistableJavaElementFactory"/>
+<item elementID="=cg-provider-res/src\/test\/java" factoryID="org.eclipse.jdt.ui.PersistableJavaElementFactory"/>
+<item elementID="=cg-commons/src\/test\/java" factoryID="org.eclipse.jdt.ui.PersistableJavaElementFactory"/>
+<item elementID="=cg-webapi-system/src\/test\/java" factoryID="org.eclipse.jdt.ui.PersistableJavaElementFactory"/>
+<item elementID="=cg-common-data/src\/test\/java" factoryID="org.eclipse.jdt.ui.PersistableJavaElementFactory"/>
+<item elementID="=cg-common-web/src\/test\/java" factoryID="org.eclipse.jdt.ui.PersistableJavaElementFactory"/>
+<item elementID="=cg-provider-sys/src\/test\/java" factoryID="org.eclipse.jdt.ui.PersistableJavaElementFactory"/>
+<item elementID="=cg-common-config/src\/test\/java" factoryID="org.eclipse.jdt.ui.PersistableJavaElementFactory"/>
+<item elementID="=cg-common-core/src\/test\/java" factoryID="org.eclipse.jdt.ui.PersistableJavaElementFactory"/>
+</workingSet>
+<workingSet editPageId="org.eclipse.ui.resourceWorkingSetPage" factoryID="org.eclipse.ui.internal.WorkingSetFactory" id="1551150623154_3" label="hjl-parent" name="hjl-parent">
+<item factoryID="org.eclipse.ui.internal.model.ResourceFactory" path="/hjl-service-sys" type="4"/>
+<item factoryID="org.eclipse.ui.internal.model.ResourceFactory" path="/hjl-user-parent" type="4"/>
+<item factoryID="org.eclipse.ui.internal.model.ResourceFactory" path="/hjl-provider-sys" type="4"/>
+<item factoryID="org.eclipse.ui.internal.model.ResourceFactory" path="/hjl-common-config" type="4"/>
+<item factoryID="org.eclipse.ui.internal.model.ResourceFactory" path="/hjl-common-web" type="4"/>
+<item factoryID="org.eclipse.ui.internal.model.ResourceFactory" path="/hjl-webapi-parent" type="4"/>
+<item factoryID="org.eclipse.ui.internal.model.ResourceFactory" path="/hjl-master" type="4"/>
+<item factoryID="org.eclipse.ui.internal.model.ResourceFactory" path="/hjl-provider-user" type="4"/>
+<item factoryID="org.eclipse.ui.internal.model.ResourceFactory" path="/hjl-common-core" type="4"/>
+<item factoryID="org.eclipse.ui.internal.model.ResourceFactory" path="/hjl-service-user" type="4"/>
+<item factoryID="org.eclipse.ui.internal.model.ResourceFactory" path="/hjl-sys-parent" type="4"/>
+<item factoryID="org.eclipse.ui.internal.model.ResourceFactory" path="/hjl-webapi-system" type="4"/>
+<item factoryID="org.eclipse.ui.internal.model.ResourceFactory" path="/hjl-service-res" type="4"/>
+<item factoryID="org.eclipse.ui.internal.model.ResourceFactory" path="/hjl-provider-res" type="4"/>
+<item factoryID="org.eclipse.ui.internal.model.ResourceFactory" path="/hjl-commons" type="4"/>
+<item factoryID="org.eclipse.ui.internal.model.ResourceFactory" path="/hjl-app-parent" type="4"/>
+<item factoryID="org.eclipse.ui.internal.model.ResourceFactory" path="/hjl-app-crestron" type="4"/>
+<item factoryID="org.eclipse.ui.internal.model.ResourceFactory" path="/hjl-app-device" type="4"/>
+<item factoryID="org.eclipse.ui.internal.model.ResourceFactory" path="/hjl-res-parent" type="4"/>
+<item factoryID="org.eclipse.ui.internal.model.ResourceFactory" path="/hjl-common-parent" type="4"/>
+<item factoryID="org.eclipse.ui.internal.model.ResourceFactory" path="/hjl-common-data" type="4"/>
+<item factoryID="org.eclipse.ui.internal.model.ResourceFactory" path="/hjl-timer" type="4"/>
+</workingSet>
+<workingSet aggregate="true" factoryID="org.eclipse.ui.internal.WorkingSetFactory" id="1547716955689_2" label="Window Working Set" name="Aggregate for window 1547716955689"/>
+<workingSet aggregate="true" factoryID="org.eclipse.ui.internal.WorkingSetFactory" id="1551691665550_4" label="Window Working Set" name="Aggregate for window 1551691665550"/>
+</workingSetManager>

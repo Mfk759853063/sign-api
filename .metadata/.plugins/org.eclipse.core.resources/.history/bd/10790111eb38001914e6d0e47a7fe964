@@ -1,0 +1,124 @@
+package com.porui.webapi.system.util;
+
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.InputStream;
+
+import java.net.URLEncoder;
+import java.security.Timestamp;
+import java.util.Arrays;
+import java.util.Base64;
+import java.util.HashMap;
+import java.util.Map;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.web.client.RestTemplate;
+
+import com.alibaba.fastjson.JSONObject;
+import com.porui.hjl.commons.security.MD5;
+import com.porui.hjl.commons.utils.HttpSendShort;
+import com.porui.hjl.commons.utils.StringUtils;
+
+public class TencentAPI {
+	
+	@Autowired
+	RestTemplate restTemplate;
+	
+	private Logger logger = LoggerFactory.getLogger(TencentAPI.class);
+	
+	private static final String appId = "2107586633";
+	
+	private static final String appKey = "BnZDXUosSDgKgP1n";
+	
+	private String IDCARDOCRAPI = "https://api.ai.qq.com/fcgi-bin/ocr/ocr_idcardocr";
+	
+	private static long getTimeStamp() {
+		return System.currentTimeMillis()/1000;
+	}
+	
+	private static String getNonceStr() {
+		return StringUtils.getUUID();
+	}
+	
+	private String getSign(Map<String, String>params) { 
+		StringBuffer signBuffer = new StringBuffer();
+		Object[] keyArray = params.keySet().toArray();
+		Arrays.sort(keyArray);
+		for (Object key : keyArray) {
+			if (!StringUtils.isEmpty(params.get(key))) {
+				signBuffer.append(key).append("=").append(params.get(key)).append("&");
+			}
+		}
+		signBuffer.append("app_key=").append(appKey);
+		String sign = new String(signBuffer);
+		return MD5.MD5Encode(sign).toUpperCase();
+	}
+	
+	private String getBase64Str(String filePath) throws Exception { 
+		InputStream inputSteam = null;
+		byte[] data = null;
+		try {
+			File file = new File(filePath);
+			inputSteam = new FileInputStream(file);
+			IOUtils.toByteArray(inputSteam);
+			data = ImageTools.compressUnderSize(new File(filePath), 500*1024);
+			
+			data = new byte[inputSteam.available()];
+			inputSteam.read(data);
+			inputSteam.close();
+			
+//			inputSteam = new ClassPathResource("/test.jpg").getInputStream();
+//			data = new byte[inputSteam.available()];
+//			inputSteam.read(data);
+//			inputSteam.close();
+		} catch (Exception e) {
+			e.printStackTrace();
+			// TODO: handle exception
+		}
+		String base64String = new String(Base64.getEncoder().encode(data));
+		return base64String;
+	}
+	
+	private String getParamString(Map<String, String>params) {
+		StringBuffer signBuffer = new StringBuffer();
+		Object[] keyArray = params.keySet().toArray();
+		Arrays.sort(keyArray);
+		for (Object key : keyArray) {
+			if (!StringUtils.isEmpty(params.get(key))) {
+				signBuffer.append(key).append("=").append(params.get(key)).append("&");
+			}
+		}
+		signBuffer.deleteCharAt(signBuffer.length() - 1);
+		String sign = new String(signBuffer);
+		return sign;
+	}
+	
+	public Object getOCRIDCardInfo(String filePath, String idCardType ) throws Exception {
+		Object response = null;
+		try {
+			HashMap<String, String> params = new HashMap<String, String>();
+			params.put("app_id", URLEncoder.encode(String.valueOf(appId), "UTF-8"));
+			params.put("time_stamp", URLEncoder.encode(String.valueOf(getTimeStamp()), "UTF-8"));
+			params.put("nonce_str", URLEncoder.encode(getNonceStr(), "UTF-8"));
+			params.put("card_type", URLEncoder.encode(String.valueOf(idCardType), "UTF-8"));
+			String imgBase64 = getBase64Str(filePath);
+			params.put("image",URLEncoder.encode(imgBase64, "UTF-8"));
+			params.put("sign", URLEncoder.encode(getSign(params), "UTF-8"));
+
+			StringBuffer sBuffer = new StringBuffer();
+			HttpSendShort.sendStrOfPost(IDCARDOCRAPI, "", getParamString(params), sBuffer);
+			JSONObject  jsonObject = JSONObject.parseObject(sBuffer.toString());
+			if (jsonObject.getInteger("ret") == 0) {
+			    response = jsonObject.get("data");
+			}
+		} catch (Exception e) {
+			// TODO: handle exception
+			e.printStackTrace();
+			response = null;
+		}
+		return response;
+	}
+
+}

@@ -1,0 +1,5 @@
+package com.porui.webapi.system.util;
+
+public class ImageTools {
+
+}

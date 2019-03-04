@@ -1,0 +1,288 @@
+package com.porui.webapi.system.aspect;
+
+import java.lang.reflect.Method;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
+
+import javax.servlet.http.HttpServletRequest;
+
+import org.aspectj.lang.ProceedingJoinPoint;
+import org.aspectj.lang.annotation.Around;
+import org.aspectj.lang.annotation.Aspect;
+import org.aspectj.lang.annotation.Pointcut;
+import org.aspectj.lang.reflect.MethodSignature;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
+
+import com.alibaba.fastjson.JSON;
+import com.porui.hjl.common.core.annotaion.AppRole;
+import com.porui.hjl.common.core.annotaion.Logical;
+import com.porui.hjl.common.core.annotaion.RequireRole;
+import com.porui.hjl.common.core.vo.OutputObj;
+import com.porui.hjl.commons.cache.RedisUtils;
+import com.porui.hjl.commons.utils.StringUtils;
+import com.porui.hjl.provider.sys.entity.log.SMLog;
+import com.porui.hjl.provider.sys.service.log.ILogService;
+import com.porui.hjl.provider.user.entity.UMAppUser;
+import com.porui.hjl.provider.user.entity.UMRoom;
+import com.porui.hjl.provider.user.entity.dept.UMEmployee;
+import com.porui.hjl.provider.user.service.IAppUserService;
+import com.porui.hjl.provider.user.service.IRoomService;
+import com.porui.hjl.provider.user.service.IUserService;
+import com.porui.hjl.provider.user.service.dept.IEmployeeService;
+
+import io.swagger.annotations.ApiOperation;
+
+/**
+ * Created by tablv on 2017-09-13.
+ * 
+ * @Description:接口权限控制类
+ */
+
+@Aspect
+@Component
+@SuppressWarnings("rawtypes")
+public class PermissionAspect {
+	
+	
+	
+	private Logger logger= LoggerFactory.getLogger(PermissionAspect.class);
+	
+	private boolean enable=true;
+	
+	@Autowired
+	private IUserService userService;
+	
+	@Autowired
+	private IAppUserService appUerService;
+	
+	@Autowired
+	private IRoomService roomService;
+	
+	@Autowired
+	private IEmployeeService employeeService;
+	
+	@Autowired
+	private ILogService logService;
+	
+	@Pointcut("execution(* com.porui.webapi.system.controller..*.*(..)) && "
+			+ "@annotation(com.porui.hjl.common.core.annotaion.RequireRole) && @annotation(org.springframework.web.bind.annotation.RequestMapping)")
+	public void controllerMethodPointcut() {
+	}
+
+	/**
+	 * 拦截器具体实现
+	 * 
+	 * @param pjp
+	 * @return JsonResult（被拦截方法的执行结果，或需要登录的错误提示。）
+	 */
+
+	@SuppressWarnings("unchecked")
+	@Around("controllerMethodPointcut()")
+	public Object Interceptor(ProceedingJoinPoint pjp) throws Throwable {
+
+		if(!enable){			
+			return pjp.proceed();
+		}
+		
+		MethodSignature signature = (MethodSignature) pjp.getSignature();
+		Method method = signature.getMethod(); // 获取被拦截的方法
+		String methodName = method.getName(); // 获取被拦截的方法名		
+		
+		String token = null;
+		ServletRequestAttributes attributes = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
+		HttpServletRequest request = attributes.getRequest();
+		
+		token=request.getHeader("Authorization");
+		
+		if(token==null||token.equals("")){
+			HashMap<String, String> hashedMap = new HashMap();
+			hashedMap.put("status", "3");
+			hashedMap.put("msg", "TOKEN信息不能为空");
+			Class returnType = ((MethodSignature) signature).getReturnType();
+			logger.info(returnType.getName());
+			logger.info(OutputObj.class.getName());
+			if(returnType.getName().equals(OutputObj.class.getName())){
+				OutputObj out = new OutputObj();
+				out.setStatus("3");
+				out.setMsg("TOKEN信息不能为空");
+				return out;
+			}
+			return JSON.toJSONString(hashedMap);
+		}
+		
+		String role = null;
+		String condition = "默认";
+		// 获取权限注解内容
+		RequireRole annotation = method.getAnnotation(RequireRole.class);
+		AppRole[] value = annotation.value();
+
+		if (value.length > 1) {
+			Logical logical = annotation.logical();
+			if (logical == null) {
+				throw new IllegalArgumentException("权限注解参数异常:注解两个权限时必须添加一个逻辑条件");
+			}
+			condition = logical.toString();
+			String separator = null;
+			if ("AND".equals(condition)) {
+				separator = "&";
+			} else {
+				separator = "|";
+			}
+			StringBuffer sb = new StringBuffer();
+			for (AppRole appRole : value) {
+				sb.append(appRole.toString());
+				sb.append(separator);
+			}
+			role = sb.toString();
+		} else {
+			role = value[0].toString();
+		}
+	
+		logger.info("方法：" + methodName + "  参数: " + Arrays.toString(pjp.getArgs()) + "  token: " + token
+				+ "  接口权限：" + role + "  条件：" + condition);
+//admin   SYS_COMMON
+		if (!isPermission(token, role)) {
+			Class returnType = ((MethodSignature) signature).getReturnType();
+			logger.info(returnType.getName());
+			logger.info(OutputObj.class.getName());
+			if(returnType.getName().equals(OutputObj.class.getName())){
+				OutputObj out = new OutputObj();
+				out.setStatus("4");
+				out.setMsg("无接口访问权限");
+				return out;
+			}
+			HashMap<String, String> hashedMap = new HashMap();
+			hashedMap.put("status", "4");
+			hashedMap.put("msg", "无接口访问权限");
+			return JSON.toJSONString(hashedMap);
+		}
+
+		Object result = null;
+		try {
+			result = pjp.proceed();
+		} catch (Throwable e) {
+			logger.error("Interceptor pjp.proceed()", e);
+		}
+		try{
+			if(annotation.desc()){
+				
+				ApiOperation apiOperation = method.getAnnotation(ApiOperation.class);
+				String desc = apiOperation.value();
+				
+				SMLog log = new SMLog();
+				log.setId(StringUtils.getUUID());
+				log.setDesc(desc);
+				log.setMethod(methodName);
+				log.setQueryString(request.getQueryString());
+				Object[] bodyList = pjp.getArgs();
+				String body = "";
+				for(Object obj : bodyList){
+					try{
+						body += JSON.toJSONString(obj)+"@@@";
+					}catch(Exception e){
+						try{
+							body += (obj).toString()+"@@@";
+						}catch(Exception e1){
+							
+						}
+						logger.info(e.getMessage());
+					}
+				}
+				log.setRequestBody(body);
+				log.setRemoteAddr(request.getRemoteAddr());
+				log.setRequestUrl(request.getRequestURL().toString());
+				UMAppUser appUser = appUerService.getByToken(token);
+				if(appUser != null&&StringUtils.isNotBlank(appUser.getId())){
+					log.setUserId(appUser.getId());
+					UMEmployee employee = employeeService.getByAppUserId(appUser.getId());
+					log.setComId(employee==null?"admin":employee.getComId());
+				}
+				
+				logService.add(log);
+			}
+		}catch(Exception e){
+			logger.info("操作日志入库出错", e);
+		}
+		
+		return result;
+	}
+	
+	
+	
+
+	private boolean isPermission(String token, String annotationRole) {
+		//大屏调用接口！！！
+		if(token.endsWith("addresspad")){
+        	try {
+	        	UMRoom	room = roomService.getRoomByPadMac(token);
+	        	if(null!= room && StringUtils.isNotBlank(room.getId())){
+	        		return true;
+	        	}
+        	}catch (Exception e) {
+ 			}
+        }
+		List<String> roles=null;
+		try {
+			String roleStr=RedisUtils.instance().get(token);
+			if(StringUtils.isNotEmpty(roleStr)){
+				roles=JSON.parseArray(roleStr, String.class);
+			}else{
+				roles = userService.getUserRolesByToken(token);
+				if(null!=roles&&!roles.isEmpty()){
+					RedisUtils.instance().set(token, JSON.toJSONString(roles));
+				}
+			}			
+			
+		} catch (Exception e) {
+		    logger.error("isPermission : ",e);
+		}
+		
+        if(null==roles||roles.isEmpty())return false;          
+        
+        for(String role:roles){
+           if(AppRole.SYS_ADMIN.toString().equalsIgnoreCase(role)){
+        	   return true;
+           }	
+        } 
+        
+		if (annotationRole.contains("&")) {
+			int countPermission=0;
+			String[] splitRoles = annotationRole.split("&");
+			for (String sr : splitRoles) {				
+				for (String srl : roles) {
+					if (sr.equalsIgnoreCase(srl)) {
+						++countPermission;
+						break;
+					}
+				}
+			}	
+			
+			return (countPermission==splitRoles.length)?true:false;
+			
+		} else if (annotationRole.contains("|")) {
+			String[] splitRoles = annotationRole.split("\\|");
+			for (String srl : roles) {
+				for (String role : splitRoles) {
+					if (role.equalsIgnoreCase(srl)) {
+						return true;
+					}
+				}
+			}
+		} else {
+			for (String srl : roles) {
+				if (annotationRole.equalsIgnoreCase(srl)) {
+					return true;
+				}
+			}
+		}
+
+		return false;
+	}
+
+}

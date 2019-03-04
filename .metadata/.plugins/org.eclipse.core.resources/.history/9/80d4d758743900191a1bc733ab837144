@@ -1,0 +1,81 @@
+package com.porui.hjl.app.crestron.entity;
+
+
+import java.io.Serializable;
+
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.porui.hjl.commons.entity.BaseEntity;
+
+/**
+ * 智能控制日志记录
+ */
+@JsonInclude(JsonInclude.Include.NON_NULL)
+@JsonIgnoreProperties(ignoreUnknown = true)
+public class APPControlLog extends BaseEntity implements Serializable {
+
+    private String id;
+    private String controlContent;//控制指令
+    private String userName;//操作人
+    private String roomId;//住房ID
+    private String roomName;//住房名
+    private String positionName;//房间名
+    private String deviceName;//设备名
+    private String control;//控制（设置温度、设置亮度、场景设置）
+    private String content;//操作内容
+    
+	public String getId() {
+		return id;
+	}
+	public void setId(String id) {
+		this.id = id;
+	}
+	public String getControlContent() {
+		return controlContent;
+	}
+	public void setControlContent(String controlContent) {
+		this.controlContent = controlContent;
+	}
+	public String getUserName() {
+		return userName;
+	}
+	public void setUserName(String userName) {
+		this.userName = userName;
+	}
+	public String getRoomId() {
+		return roomId;
+	}
+	public void setRoomId(String roomId) {
+		this.roomId = roomId;
+	}
+	public String getContent() {
+		return content;
+	}
+	public void setContent(String content) {
+		this.content = content;
+	}
+	public String getRoomName() {
+		return roomName;
+	}
+	public void setRoomName(String roomName) {
+		this.roomName = roomName;
+	}
+	public String getDeviceName() {
+		return deviceName;
+	}
+	public void setDeviceName(String deviceName) {
+		this.deviceName = deviceName;
+	}
+	public String getControl() {
+		return control;
+	}
+	public void setControl(String control) {
+		this.control = control;
+	}
+	public String getPositionName() {
+		return positionName;
+	}
+	public void setPositionName(String positionName) {
+		this.positionName = positionName;
+	}
+}

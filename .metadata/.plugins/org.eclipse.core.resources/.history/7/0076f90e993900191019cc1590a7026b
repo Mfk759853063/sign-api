@@ -1,0 +1,5 @@
+package com.porui.webapi.system.delayDefence;
+
+public interface DelayDefenceResultCallback {
+
+}

@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<section name="Workbench">
+	<list key="org.eclipse.ui.internal.wizards.datatransfer.SmartImportRootWizardPage.knownSources">
+		<item value="/Users/vbn/dev/java/pori-workspace/hjl-cgProgram"/>
+	</list>
+	<section name="WORKBENCH_SETTINGS">
+		<list key="ENABLED_TRANSFERS">
+		</list>
+	</section>
+	<section name="NewWizardAction">
+		<item value="org.eclipse.m2e.core.wizards.Maven2ProjectWizard" key="NewWizardSelectionPage.STORE_SELECTED_ID"/>
+		<list key="NewWizardSelectionPage.STORE_EXPANDED_CATEGORIES_ID">
+			<item value="org.eclipse.jdt.ui.java"/>
+			<item value="org.eclipse.m2e"/>
+		</list>
+	</section>
+	<section name="ChooseWorkspaceDialogSettings">
+		<item value="665" key="DIALOG_X_ORIGIN"/>
+		<item value="289" key="DIALOG_Y_ORIGIN"/>
+	</section>
+	<section name="org.eclipse.ui.dialogs.FilteredResourcesSelectionDialog">
+		<item value="false" key="FilterByLocation"/>
+		<item value="true" key="ShowStatusLine"/>
+		<item value="&lt;?xml version=&quot;1.0&quot; encoding=&quot;UTF-8&quot;?&gt;&#x0A;&lt;History&gt;&#x0A;&lt;historyRootNode&gt;&#x0A;&lt;infoNode path=&quot;/hjl-master/hjl-web-parent/hjl-web-admin/src/main/resources/dubbo/dubbo-consumer.xml&quot; type=&quot;1&quot;/&gt;&#x0A;&lt;infoNode path=&quot;/hjl-app-parent/hjl-app-crestron/target/classes/com/porui/hjl/app/crestron/service/IAppService.class&quot; type=&quot;1&quot;/&gt;&#x0A;&lt;infoNode path=&quot;/hjl-provider-user/src/main/java/com/porui/hjl/provider/user/service/IRoomService.java&quot; type=&quot;1&quot;/&gt;&#x0A;&lt;infoNode path=&quot;/hjl-app-crestron/src/main/java/com/porui/hjl/app/crestron/service/IAppService.java&quot; type=&quot;1&quot;/&gt;&#x0A;&lt;infoNode path=&quot;/hjl-master/hjl-user-parent/hjl-provider-user/src/main/java/com/porui/hjl/provider/user/entity/UMRoom.java&quot; type=&quot;1&quot;/&gt;&#x0A;&lt;infoNode path=&quot;/hjl-webapi-system/src/main/java/com/porui/webapi/system/controller/safety/LeChengController.java&quot; type=&quot;1&quot;/&gt;&#x0A;&lt;infoNode path=&quot;/hjl-app-parent/hjl-app-device/src/main/java/com/porui/hjl/app/device/socketServer/mina/CentralSocketServer.java&quot; type=&quot;1&quot;/&gt;&#x0A;&lt;infoNode path=&quot;/cg-webapi-parent/cg-webapi-system/src/main/resources/application.yml&quot; type=&quot;1&quot;/&gt;&#x0A;&lt;infoNode path=&quot;/hjl-master/hjl-webapi-parent/hjl-webapi-system/target/classes/com/porui/webapi/system/util/DelayAlarmUtils.class&quot; type=&quot;1&quot;/&gt;&#x0A;&lt;infoNode path=&quot;/hjl-webapi-system/src/main/java/com/porui/webapi/system/util/DelayAlarmUtils.java&quot; type=&quot;1&quot;/&gt;&#x0A;&lt;infoNode path=&quot;/hjl-master/hjl-webapi-parent/hjl-webapi-system/src/main/java/com/porui/webapi/system/controller/safety/YsController.java&quot; type=&quot;1&quot;/&gt;&#x0A;&lt;/historyRootNode&gt;&#x0A;&lt;/History&gt;" key="History"/>
+		<item value="&lt;?xml version=&quot;1.0&quot; encoding=&quot;UTF-8&quot;?&gt;&#x0A;&lt;workingSet workingSetName=&quot;&quot;/&gt;" key="WorkingSet"/>
+		<item value="false" key="ShowDerived"/>
+		<section name="DialogBoundsSettings">
+			<item value="600" key="DIALOG_WIDTH"/>
+			<item value="1|.AppleSystemUIFont|11.0|0|COCOA|1|.AppleSystemUIFont" key="DIALOG_FONT_NAME"/>
+			<item value="500" key="DIALOG_HEIGHT"/>
+			<item value="420" key="DIALOG_X_ORIGIN"/>
+			<item value="105" key="DIALOG_Y_ORIGIN"/>
+		</section>
+	</section>
+</section>

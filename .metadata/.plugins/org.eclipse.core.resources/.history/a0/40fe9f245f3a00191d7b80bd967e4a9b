@@ -1,0 +1,124 @@
+package com.porui.webapi.system.thread;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.alibaba.dubbo.common.json.JSON;
+import com.alibaba.dubbo.common.json.JSONObject;
+import com.alibaba.dubbo.common.json.ParseException;
+import com.porui.hjl.commons.cache.RedisUtils;
+import com.porui.hjl.commons.utils.HttpSendShort;
+
+/**
+ * Created by pichun on 2017-02-27.
+ */
+public class DefenceThread extends Thread{
+
+    Logger logger= LoggerFactory.getLogger(DefenceThread.class);
+    
+    private String deviceSerial = null;
+    
+    private String roomId = null;
+    
+    private String childAccessToken = null;
+    
+    private int isDefence = 0;
+    
+    public DefenceThread(String deviceSerial,String roomId,String childAccessToken,int isDefence) {
+        this.deviceSerial = deviceSerial;
+        this.roomId = roomId;
+        this.childAccessToken = childAccessToken;
+        this.isDefence = isDefence;
+    }
+    
+    public void setDeviceSerial(String deviceSerial){
+    	this.deviceSerial = deviceSerial;
+    }
+    
+    public void setRoomId(String roomId){
+    	this.roomId = roomId;
+    }
+    
+    public void setChildAccessToken(String childAccessToken){
+    	this.childAccessToken = childAccessToken;
+    }
+    
+    @Override
+    public void run(){
+    	
+    	try {
+    		logger.info("布撤防开始");
+//			List<String> centerCode = new ArrayList<String>();
+			int defenceCode = 0 ;
+			boolean isWait = true;
+			if(isDefence == 0){
+	    		//睡眠AA55FF00034010000D0A
+				//AA55FF00034012000D0A
+				isWait = false;
+	    	}else if(isDefence == 1){
+	    		//在家AA55FF00034011000D0A
+	    		//AA55FF00034013000D0A
+	    		isWait = false;
+	    		defenceCode = 8;
+	    	}else if(isDefence == 2){
+	    		defenceCode = 16;
+	    	}
+			if(isWait){
+				this.currentThread().sleep(30000);
+			}
+			boolean isChange = true;
+			int isDefenceNew = 0;
+			if(RedisUtils.instance().get(roomId.getBytes())!=null){
+				isDefenceNew = RedisUtils.instance().get(roomId.getBytes());
+				logger.info("最新布放状态："+isDefenceNew);
+				logger.info("线程布放状态："+isDefence);
+				if(isDefence != isDefenceNew&&isWait){
+					isChange = false;
+				}
+			}
+			
+			if(isChange){
+				StringBuffer sb = new StringBuffer();
+	    		HttpSendShort.sendStrOfPost("https://open.ys7.com/api/lapp/device/defence/set", "accessToken="+childAccessToken+"&deviceSerial="+deviceSerial+"&isDefence="+defenceCode, "", sb);
+	    		JSONObject resultJson = new JSONObject();
+				try {
+					resultJson = (JSONObject)JSON.parse(sb.toString());
+				} catch (ParseException e) {
+					logger.error("", e);
+				}
+				logger.info("布撤防码"+defenceCode);
+				if(!"200".equals(resultJson.get("code"))){
+					sb.setLength(0);
+	    			if(defenceCode == 0 || defenceCode == 8){
+	    				defenceCode = 0;
+	    				HttpSendShort.sendStrOfPost("https://open.ys7.com/api/lapp/device/defence/set", "accessToken="+childAccessToken+"&deviceSerial="+deviceSerial+"&isDefence="+defenceCode, "", sb);
+	        		}else if(defenceCode == 16){
+	        			defenceCode = 1;
+	        			HttpSendShort.sendStrOfPost("https://open.ys7.com/api/lapp/device/defence/set", "accessToken="+childAccessToken+"&deviceSerial="+deviceSerial+"&isDefence="+defenceCode, "", sb);
+	        		}
+	    		}
+				logger.info("布撤防码"+defenceCode);
+				logger.info("布撤防结束");
+			}
+			
+			if
+		} catch (InterruptedException e) {
+			logger.info("",e);
+		}
+    }
+    
+//    public byte[] str16toByte(String content){
+//    	String[] contents = new String[content.length()/2];
+//    	byte[] bytes=new byte[contents.length];
+//    	for(int i=0;i<content.length()/2;i++){
+//    		contents[i] = content.substring(i*2, (i+1)*2);
+//    	}
+//    	for(int i = 0;i < contents.length;i ++){
+//    		if(!StringUtils.isBlank(contents[i])){
+//    			bytes[i] = (byte)Integer.parseInt(contents[i],16);
+//    		}
+//    	}
+//    	return bytes;
+//    }
+    
+}

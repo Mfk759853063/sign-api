@@ -1,0 +1,64 @@
+package com.porui.webapi.system.delayDefence.copy;
+
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.ezviz.open.push.inner.domain.bo.AlarmMessage;
+import com.porui.hjl.commons.cache.RedisUtils;
+import com.porui.hjl.provider.user.entity.UMRoom;
+
+public class DelayAlarmService {
+	
+	private static Logger logger= LoggerFactory.getLogger(DelayAlarmService.class);
+	
+	public static Callable<Boolean> doTaskCallable(UMRoom room, AlarmMessage message) throws Exception {
+		return new Callable<Boolean>() {
+			@Override
+			public Boolean call() throws Exception {
+				if (isExistAlarmFlag(room)) {
+					return false;
+				}
+				// 设置一个过期时间
+				Integer seconds = Integer.parseInt(room.getDelayAlarmTime());
+				logger.info("延迟时间"+room.getDelayAlarmTime());
+				logger.info("当前线程"+Thread.currentThread().getName());
+				setDelayAlarmFlag(room,seconds + 3);
+				Thread.currentThread().sleep(seconds * 1000);
+				logger.info("延迟时间结束");
+				if (isExistAlarmFlag(room)) {
+					// 延迟过后还有这个key,表明需要报警
+					cleanDelayAlarmFlag(room);
+					return true;
+				} else {
+					return false;
+				}
+			}
+		};
+	}
+	
+	public static Boolean delayAlarm(UMRoom room, AlarmMessage message) throws Exception {
+		final Callable<Boolean> callable = doTaskCallable(room, message);
+		final ExecutorService service = Executors.newFixedThreadPool(2);
+		final Future<Boolean> result = service.submit(callable);
+		final Boolean needAlarm = result.get();
+		return needAlarm;
+	}
+	
+	public static void cleanDelayAlarmFlag(UMRoom room) {
+		RedisUtils.instance().del("delay-alarm-roomId:"+room.getId());
+	}
+	
+	public static void setDelayAlarmFlag(UMRoom room,Integer seconds) {
+		RedisUtils.instance().setex("delay-alarm-roomId:" + room.getId(), "1", seconds);
+	}
+	
+	public static Boolean isExistAlarmFlag(UMRoom room) {
+		return RedisUtils.instance().exists("delay-alarm-roomId:"+room.getId());
+	}
+
+}

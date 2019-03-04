@@ -1,0 +1,20 @@
+package com.porui.webapi.system.service.labourer;
+
+import java.util.HashMap;
+
+import org.springframework.stereotype.Service;
+
+import com.porui.webapi.system.util.TencentAPI;
+
+
+@Service("labourerValidationService")
+public class LabourerValidationService {
+	
+	public String getIDCardNumber(String imgPath, String cardType) throws Exception {
+		String idCardNum = new String();
+		TencentAPI api = new TencentAPI();
+		HashMap<String, Object> res = api.getOCRIDCardInfo(imgPath, cardType);
+		idCardNum = (String)res.get("data.id");
+		return idCardNum;
+	}
+}

@@ -1,0 +1,8 @@
+package com.porui.webapi.system.delayDefence;
+
+public interface DelayAlarmServiceCallback {
+
+	void onSuccess();
+	
+	void delay
+}

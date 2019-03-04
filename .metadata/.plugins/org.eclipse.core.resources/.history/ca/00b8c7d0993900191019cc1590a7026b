@@ -1,0 +1,243 @@
+//RCCodeBuild代码生成器生成
+
+package com.porui.hjl.provider.user.entity;
+
+import java.io.Serializable;
+
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.porui.hjl.commons.entity.BaseEntity;
+
+import io.swagger.annotations.ApiModel;
+import io.swagger.annotations.ApiModelProperty;
+
+
+/**
+ * 住房
+ */
+@ApiModel
+@JsonInclude(JsonInclude.Include.NON_NULL)
+@JsonIgnoreProperties(ignoreUnknown = true)
+public class UMRoom extends BaseEntity implements Serializable {
+	
+	
+	private String id;
+	@ApiModelProperty(value="小区ID")
+	private String comId;
+	@ApiModelProperty(value="楼栋ID")
+	private String building;
+	@ApiModelProperty(value="单元ID")
+	private String unitId;
+	@ApiModelProperty(value="楼层ID")
+	private String floor;
+	@ApiModelProperty(value="住房名")
+	private String roomName;
+	@ApiModelProperty(value="房号")
+	private String roomNumber;
+	@ApiModelProperty(value="车位")
+	private String parkingSpace;
+	@ApiModelProperty(value="所属业主")
+	private String proId;
+	@ApiModelProperty(value="子账户ID")
+	private String accountId;
+	@ApiModelProperty(value="是否选中 1 选中")
+	private String isDefault;
+	@ApiModelProperty(value="智能家居中控MAC地址")
+	private String deviceMac;
+	@ApiModelProperty(value="大屏MAC地址")
+	private String padMac;
+	@ApiModelProperty(value="声控设备MAC地址")
+	private String voiceDeviceMac;
+	@ApiModelProperty(value="净水器设备ID")
+	private String waterDeviceId;
+	@ApiModelProperty(value="智能控制户型ID")
+	private String typeId;
+	@ApiModelProperty(value="萤石子账户token")
+	private String childAccessToken;
+	@ApiModelProperty(value="面积")
+	private String area;
+	@ApiModelProperty(value="物业费计费面积")
+	private String feeArea;
+	@ApiModelProperty(value="套内面积")
+	private String internalArea;
+	@ApiModelProperty(value="户型")
+	private String houseType;
+	@ApiModelProperty(value="1住宅/出售 2商业/月租")
+	private String feeRoomType;
+	@ApiModelProperty(value="门锁类型 1扫码开门 2动态密码 3扫脸开门")
+	private String doorLockType;
+	@ApiModelProperty(value="验房户型")
+	private String houseTypeId;
+	@ApiModelProperty(value="验房结果(0 未验 1 整改 2 物业通过 3 业主通过)")
+	private String houseCheckStatus;
+	@ApiModelProperty(value="整改状态 0 未整改  1 整改中 2 整改完成")
+    private String rectifyStatus;
+	@ApiModelProperty(value="是否有延迟报警功能 1 有， 2 没有")
+	private String delayAlarm;
+	@ApiModelProperty(value="延迟报警时间/s")
+	private String delayAlarmTime;
+	
+	private String proRoomId;
+	public String getChildAccessToken() {
+		return childAccessToken;
+	}
+	public void setChildAccessToken(String childAccessToken) {
+		this.childAccessToken = childAccessToken;
+	}
+	public String getId() {
+		return id;
+	}
+	public void setId(String id) {
+		this.id = id;
+	}
+	public String getComId() {
+		return comId;
+	}
+	public void setComId(String comId) {
+		this.comId = comId;
+	}
+	public String getBuilding() {
+		return building;
+	}
+	public void setBuilding(String building) {
+		this.building = building;
+	}
+	public String getFloor() {
+		return floor;
+	}
+	public String getUnitId() {
+		return unitId;
+	}
+	public void setUnitId(String unitId) {
+		this.unitId = unitId;
+	}
+	public void setFloor(String floor) {
+		this.floor = floor;
+	}
+	public String getRoomNumber() {
+		return roomNumber;
+	}
+	public void setRoomNumber(String roomNumber) {
+		this.roomNumber = roomNumber;
+	}
+	public String getParkingSpace() {
+		return parkingSpace;
+	}
+	public void setParkingSpace(String parkingSpace) {
+		this.parkingSpace = parkingSpace;
+	}
+	public String getProId() {
+		return proId;
+	}
+	public void setProId(String proId) {
+		this.proId = proId;
+	}
+	public String getAccountId() {
+		return accountId;
+	}
+	public void setAccountId(String accountId) {
+		this.accountId = accountId;
+	}public String getIsDefault() {
+		return isDefault;
+	}
+	public void setIsDefault(String isDefault) {
+		this.isDefault = isDefault;
+	}
+	public String getDeviceMac() {
+		return deviceMac;
+	}
+	public void setDeviceMac(String deviceMac) {
+		this.deviceMac = deviceMac;
+	}
+	public String getPadMac() {
+		return padMac;
+	}
+	public void setPadMac(String padMac) {
+		this.padMac = padMac;
+	}
+	public String getWaterDeviceId() {
+		return waterDeviceId;
+	}
+	public void setWaterDeviceId(String waterDeviceId) {
+		this.waterDeviceId = waterDeviceId;
+	}
+	public String getTypeId() {
+		return typeId;
+	}
+	public void setTypeId(String typeId) {
+		this.typeId = typeId;
+	}
+	public String getRoomName() {
+		return roomName;
+	}
+	public void setRoomName(String roomName) {
+		this.roomName = roomName;
+	}
+	public String getProRoomId() {
+		return proRoomId;
+	}
+	public void setProRoomId(String proRoomId) {
+		this.proRoomId = proRoomId;
+	}
+	public String getArea() {
+		return area;
+	}
+	public void setArea(String area) {
+		this.area = area;
+	}
+	public String getHouseType() {
+		return houseType;
+	}
+	public void setHouseType(String houseType) {
+		this.houseType = houseType;
+	}
+	public String getFeeArea() {
+		return feeArea;
+	}
+	public void setFeeArea(String feeArea) {
+		this.feeArea = feeArea;
+	}
+	public String getInternalArea() {
+		return internalArea;
+	}
+	public void setInternalArea(String internalArea) {
+		this.internalArea = internalArea;
+	}
+	public String getFeeRoomType() {
+		return feeRoomType;
+	}
+	public void setFeeRoomType(String feeRoomType) {
+		this.feeRoomType = feeRoomType;
+	}
+	public String getDoorLockType() {
+		return doorLockType;
+	}
+	public void setDoorLockType(String doorLockType) {
+		this.doorLockType = doorLockType;
+	}
+	public String getVoiceDeviceMac() {
+		return voiceDeviceMac;
+	}
+	public void setVoiceDeviceMac(String voiceDeviceMac) {
+		this.voiceDeviceMac = voiceDeviceMac;
+	}
+	public String getHouseTypeId() {
+		return houseTypeId;
+	}
+	public void setHouseTypeId(String houseTypeId) {
+		this.houseTypeId = houseTypeId;
+	}
+	public String getHouseCheckStatus() {
+		return houseCheckStatus;
+	}
+	public void setHouseCheckStatus(String houseCheckStatus) {
+		this.houseCheckStatus = houseCheckStatus;
+	}
+	public String getRectifyStatus() {
+		return rectifyStatus;
+	}
+	public void setRectifyStatus(String rectifyStatus) {
+		this.rectifyStatus = rectifyStatus;
+	}
+	
+}

@@ -1,0 +1,500 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.porui.hjl.service.user.dao.impl.RoomImpl">
+
+  <resultMap id="BaseResultMap" type="UMRoom">
+    <id column="id" jdbcType="VARCHAR" property="id" />
+    <result column="com_id" jdbcType="VARCHAR" property="comId" />
+    <result column="building" jdbcType="VARCHAR" property="building" />
+    <result column="floor" jdbcType="VARCHAR" property="floor" />
+    <result column="room_number" jdbcType="VARCHAR" property="roomNumber" />
+    <result column="parking_Space" jdbcType="VARCHAR" property="parkingSpace" />
+    <result column="pro_id" jdbcType="VARCHAR" property="proId" />
+    <result column="status" jdbcType="VARCHAR" property="status" />
+    <result column="create_time" jdbcType="BIGINT" property="createTime" />
+    <result column="is_default" jdbcType="VARCHAR" property="isDefault" />
+    <result column="account_id" jdbcType="VARCHAR" property="accountId" />
+    <result column="device_mac" jdbcType="VARCHAR" property="deviceMac" />
+    <result column="pad_mac" jdbcType="VARCHAR" property="padMac" />
+    <result column="water_Device_id" jdbcType="VARCHAR" property="waterDeviceId" />
+    <result column="type_id" jdbcType="VARCHAR" property="typeId" />
+    <result column="room_name" jdbcType="VARCHAR" property="roomName" />
+    <result column="area" jdbcType="VARCHAR" property="area" />
+    <result column="fee_area" jdbcType="VARCHAR" property="feeArea" />
+    <result column="house_type" jdbcType="VARCHAR" property="houseType" />
+    <result column="unit_id" jdbcType="VARCHAR" property="unitId" />
+    <result column="internal_area" jdbcType="VARCHAR" property="internalArea" />
+    <result column="fee_room_type" jdbcType="VARCHAR" property="feeRoomType" />
+    <result column="door_lock_type" jdbcType="VARCHAR" property="doorLockType" />
+    <result column="voice_device_mac" jdbcType="VARCHAR" property="voiceDeviceMac" />
+    <result column="house_type_id" jdbcType="VARCHAR" property="houseTypeId" />
+    <result column="house_check_status" jdbcType="VARCHAR" property="houseCheckStatus" />
+    <result column="rectify_status" jdbcType="VARCHAR" property="rectifyStatus" />
+    <result column="delay_alarm" jdbcType="VARCHAR" property="delayAlarm" />
+    <result column="delay_alarm_time" jdbcType="VARCHAR" property="delayAlarmTime" />
+    
+    
+  </resultMap>
+
+  <sql id="Base_Column_List">
+    id, com_id,voice_device_mac, building, floor, room_number, parking_Space,pro_id,status,unit_id,internal_area,fee_room_type,door_lock_type,rectify_status,
+    create_time,is_default,account_id,device_mac,pad_mac,water_Device_id,type_id,room_name,area,house_type,fee_area,house_type_id,house_check_status,delay_alarm,delay_alarm_time
+  </sql>
+
+  <select id="getByPrimaryKey" parameterType="java.lang.String" resultMap="BaseResultMap">
+    select 
+    <include refid="Base_Column_List" />
+    from um_room
+    where ID = #{id,jdbcType=VARCHAR}
+  </select>
+  
+  <update id="updateDeviceMacNull" parameterType="java.lang.String">
+    update um_room
+    <set>
+   		device_mac = null
+    </set>
+    where ID = #{id,jdbcType=VARCHAR}
+  </update>
+  
+  <update id="updatePadMacNull" parameterType="java.lang.String">
+    update um_room
+    <set>
+   		pad_mac = null
+    </set>
+    where ID = #{id,jdbcType=VARCHAR}
+  </update>
+  
+  <select id="getByPadMac" parameterType="java.lang.String" resultMap="BaseResultMap">
+    select 
+    <include refid="Base_Column_List" />
+    from um_room
+    where pad_mac = #{padMac,jdbcType=VARCHAR} and status!='9'
+  </select>
+  
+  <select id="getByDeviceMac" parameterType="java.lang.String" resultMap="BaseResultMap">
+    select 
+    <include refid="Base_Column_List" />
+    from um_room
+    where device_mac = #{deviceMac,jdbcType=VARCHAR} and status!='9'
+  </select>
+  
+  <select id="getRoomByVoiceDeviceMac" parameterType="java.lang.String" resultMap="BaseResultMap">
+    select 
+    <include refid="Base_Column_List" />
+    from um_room
+    where voice_device_mac = #{voiceDeviceMac,jdbcType=VARCHAR} and status!='9'
+  </select>
+  
+  <!-- 列表查询条件 -->
+  <sql id="condition_sql">
+    <if test="proId != null"> and room.id in (select room_id from um_pro_room prlink where prlink.pro_id=#{proId} and prlink.status!='9') </if>
+    <if test="proIdPro != null"> and room.pro_id = #{proIdPro} </if>
+    <if test="searchKey != null"> and exists(select 1 from um_proprietor pro where (pro.phone_number like CONCAT(CONCAT('%', #{searchKey}), '%') or pro.user_name like CONCAT(CONCAT('%', #{searchKey}), '%')) and pro.id = room.pro_id)</if>
+    <if test="floor != null"> and floor = #{floor} </if>
+    <if test="status != null"> and STATUS = #{status} </if>
+    <if test="status == null"> and STATUS != '9' </if>
+    <if test="roomNumber != null"> and room_number = #{roomNumber} </if>
+    <if test="unitId != null"> and unit_id = #{unitId} </if>
+    <if test="buildingId != null"> and building = #{buildingId} </if>
+    <if test="comId != null"> and com_id = #{comId} </if>
+    <if test="roomName != null"> and room_name = #{roomName} </if>
+    <if test="feeRoomType != null"> and fee_room_type = #{feeRoomType} </if>
+    <if test="rectifyStatus != null"> and rectify_status = #{rectifyStatus} </if>
+    
+    <if test="isProIdNull == 0"> and pro_id is not null and pro_id !='' </if>
+    <if test="isProIdNull == 1"> and (pro_id is null or pro_id ='') </if>
+    <if test="isHouseTypeIdNull == 0"> and house_type_id is not null and house_type_id !='' </if>
+    <if test="isHouseTypeIdNull == 1"> and (house_type_id is null or house_type_id ='') </if>
+    <if test="houseCheckStatus != null"> and house_check_status = #{houseCheckStatus} </if>
+    <if test="houseCheckStatusNotPass != null">and (house_check_status = '0' or house_check_status = '1' ) </if>
+    <if test="deviceMac != null"> and (device_mac is not null and device_mac !='') </if>
+    <if test="padMac != null"> and (pad_mac is not null and pad_mac !='') </if>
+  </sql>
+  
+  <select id="listPage" parameterType="java.util.Map" resultMap="BaseResultMap">
+    SELECT
+    <include refid="Base_Column_List"></include>
+    FROM
+    um_room room
+    <where>
+      <include refid="condition_sql" />
+    </where>
+    order by CREATE_tIME DESC
+    limit #{startNum,jdbcType=BIGINT} , #{pageSize,jdbcType=BIGINT}
+  </select>
+
+  <select id="listPageCount" parameterType="java.util.Map" resultType="long">
+    SELECT COUNT(1)
+    FROM
+    um_room room
+    <where>
+      <include refid="condition_sql" />
+    </where>
+  </select>
+  
+  <sql id="condition_sql_all">
+    <if test="status != null"> and STATUS = #{status} </if>
+    <if test="status == null"> and STATUS != '9' </if>
+    <if test="comId != null"> and com_id = #{comId} </if>
+    and (device_mac is not null and device_mac !='')
+  </sql>
+  
+  <select id="listPageGroupBy" parameterType="java.util.Map" resultType="java.util.Map">
+    SELECT
+    count(1) counts,com_id comId
+    FROM
+    um_room room
+    <where>
+      <include refid="condition_sql_all" />
+    </where>
+    group by com_id
+    limit #{startNum,jdbcType=BIGINT} , #{pageSize,jdbcType=BIGINT}
+  </select>
+
+  <select id="listPageCountGroupBy" parameterType="java.util.Map" resultType="long">
+  select count(1) from
+    (SELECT
+    count(1)
+    FROM
+    um_room room
+    <where>
+      <include refid="condition_sql_all" />
+    </where>
+    group by com_id) t
+  </select>
+  
+  <select id="listGroupBy" parameterType="java.util.Map" resultType="java.util.Map">
+  SELECT
+    count(1) counts,com_id comId
+    FROM
+    um_room room
+    <where>
+      <include refid="condition_sql_all" />
+    </where>
+    group by com_id
+  </select>
+  
+  <select id="getList" parameterType="java.util.Map" resultMap="BaseResultMap">
+    SELECT
+    <include refid="Base_Column_List"></include>
+    FROM
+    um_room room
+    <where>
+      <include refid="condition_sql" />
+    </where>
+    order by CREATE_tIME DESC
+  </select>
+
+  <insert id="insert" parameterType="UMRoom">
+    insert into um_room
+    <trim prefix="(" suffix=")" suffixOverrides=",">
+      <if test="id != null">
+        id,
+      </if>
+      <if test="comId != null">
+        com_id,
+      </if>
+      <if test="building != null">
+        building,
+      </if>
+      <if test="floor != null">
+        floor,
+      </if>
+      <if test="roomNumber != null">
+        room_number,
+      </if>
+      <if test="parkingSpace != null">
+        parking_Space,
+      </if>
+      <if test="createTime != null">
+        create_time,
+      </if>
+      <if test="status != null">
+        status,
+      </if>
+      <if test="proId != null">
+        pro_id,
+      </if>
+      <if test="isDefault != null">
+        is_Default,
+      </if>
+      <if test="accountId != null">
+        account_id,
+      </if>
+      <if test="deviceMac != null">
+        device_mac,
+      </if>
+      <if test="padMac != null">
+        pad_mac,
+      </if>
+      <if test="waterDeviceId != null">
+        water_Device_id,
+      </if>
+      <if test="roomName != null">
+        room_name,
+      </if>
+      <if test="area != null">
+        area,
+      </if>
+      <if test="feeArea != null">
+        fee_area,
+      </if>
+      <if test="houseType != null">
+        house_type,
+      </if>
+      <if test="unitId != null">
+        unit_id,
+      </if>
+      <if test="internalArea != null">
+        internal_area,
+      </if>
+      <if test="feeRoomType != null">
+        fee_room_type,
+      </if>
+      <if test="doorLockType != null">
+        door_lock_type,
+      </if>
+      <if test="voiceDeviceMac != null">
+        voice_device_mac,
+      </if>
+      <if test="houseTypeId != null">
+        house_type_id,
+      </if>
+      <if test="houseCheckStatus != null">
+        house_check_status,
+      </if>
+      <if test="rectifyStatus != null">
+        rectify_status,
+      </if>
+    </trim>
+    <trim prefix="values (" suffix=")" suffixOverrides=",">
+      <if test="id != null">
+        #{id,jdbcType=VARCHAR},
+      </if>
+      <if test="comId != null">
+        #{comId,jdbcType=VARCHAR},
+      </if>
+      <if test="building != null">
+        #{building,jdbcType=VARCHAR},
+      </if>
+      <if test="floor != null">
+        #{floor,jdbcType=VARCHAR},
+      </if>
+      <if test="roomNumber != null">
+        #{roomNumber,jdbcType=VARCHAR},
+      </if>
+      <if test="parkingSpace != null">
+        #{parkingSpace,jdbcType=VARCHAR},
+      </if>
+      <if test="createTime != null">
+        #{createTime,jdbcType=BIGINT},
+      </if>
+      <if test="status != null">
+        #{status,jdbcType=VARCHAR},
+      </if>
+      <if test="proId != null">
+        #{proId,jdbcType=VARCHAR},
+      </if>
+      <if test="isDefault != null">
+        #{isDefault,jdbcType=VARCHAR},
+      </if>
+      <if test="accountId != null">
+        #{accountId,jdbcType=VARCHAR},
+      </if>
+      <if test="deviceMac != null">
+        #{deviceMac,jdbcType=VARCHAR},
+      </if>
+      <if test="padMac != null">
+        #{padMac,jdbcType=VARCHAR},
+      </if>
+      <if test="waterDeviceId != null">
+        #{waterDeviceId,jdbcType=VARCHAR},
+      </if>
+      <if test="roomName != null">
+        #{roomName,jdbcType=VARCHAR},
+      </if>
+      <if test="area != null">
+        #{area,jdbcType=VARCHAR},
+      </if>
+      <if test="feeArea != null">
+        #{feeArea,jdbcType=VARCHAR},
+      </if>
+      <if test="houseType != null">
+        #{houseType,jdbcType=VARCHAR},
+      </if>
+      <if test="unitId != null">
+        #{unitId,jdbcType=VARCHAR},
+      </if>
+      <if test="internalArea != null">
+        #{internalArea,jdbcType=VARCHAR},
+      </if>
+      <if test="feeRoomType != null">
+        #{feeRoomType,jdbcType=VARCHAR},
+      </if>
+      <if test="doorLockType != null">
+        #{doorLockType,jdbcType=VARCHAR},
+      </if>
+      <if test="voiceDeviceMac != null">
+        #{voiceDeviceMac,jdbcType=VARCHAR},
+      </if>
+      <if test="houseTypeId != null">
+        #{houseTypeId,jdbcType=VARCHAR},
+      </if>
+      <if test="houseCheckStatus != null">
+        #{houseCheckStatus,jdbcType=VARCHAR},
+      </if>
+      <if test="rectifyStatus != null">
+        #{rectifyStatus,jdbcType=VARCHAR},
+      </if>
+    </trim>
+  </insert>
+
+  <update id="update" parameterType="UMRoom">
+    update um_room
+    <set>
+      <if test="comId != null">
+        com_id = #{comId,jdbcType=VARCHAR},
+      </if>
+      <if test="building != null">
+        building = #{building,jdbcType=VARCHAR},
+      </if>
+      <if test="floor != null">
+        floor = #{floor,jdbcType=VARCHAR},
+      </if>
+      <if test="roomNumber != null">
+        room_number = #{roomNumber,jdbcType=VARCHAR},
+      </if>
+      <if test="parkingSpace != null">
+        parking_Space = #{parkingSpace,jdbcType=VARCHAR},
+      </if>
+      <if test="proId != null">
+        pro_id = #{proId,jdbcType=VARCHAR},
+      </if>
+      <if test="status != null">
+        status = #{status,jdbcType=VARCHAR},
+      </if>
+      <if test="isDefault != null">
+        is_Default = #{isDefault,jdbcType=VARCHAR},
+      </if>
+      <if test="accountId != null">
+        account_id = #{accountId,jdbcType=VARCHAR},
+      </if>
+      <if test="deviceMac != null">
+        device_Mac = #{deviceMac,jdbcType=VARCHAR},
+      </if>
+      <if test="padMac != null">
+        pad_Mac = #{padMac,jdbcType=VARCHAR},
+      </if>
+      <if test="waterDeviceId != null">
+        water_Device_id = #{waterDeviceId,jdbcType=VARCHAR},
+      </if>
+      <if test="roomName != null">
+        room_name = #{roomName,jdbcType=VARCHAR},
+      </if>
+      <if test="area != null">
+        area = #{area,jdbcType=VARCHAR},
+      </if>
+      <if test="feeArea != null">
+        fee_area = #{feeArea,jdbcType=VARCHAR},
+      </if>
+      <if test="houseType != null">
+        house_type = #{houseType,jdbcType=VARCHAR},
+      </if>
+      <if test="unitId != null">
+        unit_id=#{unitId,jdbcType=VARCHAR},
+      </if>
+      <if test="internalArea != null">
+        internal_area=#{internalArea,jdbcType=VARCHAR},
+      </if>
+      <if test="feeRoomType != null">
+        fee_room_type=#{feeRoomType,jdbcType=VARCHAR},
+      </if>
+      <if test="typeId != null">
+        type_id=#{typeId,jdbcType=VARCHAR},
+      </if>
+      <if test="doorLockType != null">
+        door_lock_type = #{doorLockType,jdbcType=VARCHAR},
+      </if>
+      <if test="voiceDeviceMac != null">
+        voice_device_mac=#{voiceDeviceMac,jdbcType=VARCHAR},
+      </if>
+      <if test="houseTypeId != null">
+        house_type_id=#{houseTypeId,jdbcType=VARCHAR},
+      </if>
+      <if test="houseCheckStatus != null">
+        house_check_status=#{houseCheckStatus,jdbcType=VARCHAR},
+      </if>
+      <if test="rectifyStatus != null">
+        rectify_status=#{rectifyStatus,jdbcType=VARCHAR},
+      </if>
+    </set>
+    where ID = #{id,jdbcType=VARCHAR}
+  </update>
+  <update id="updateByRoomNumberAndFloor" parameterType="java.util.Map">
+    update um_room
+    <set>
+      <if test="comId != null">
+        com_id = #{comId,jdbcType=VARCHAR},
+      </if>
+      <if test="building != null">
+        building = #{building,jdbcType=VARCHAR},
+      </if>
+      <if test="floor != null">
+        floor = #{floor,jdbcType=VARCHAR},
+      </if>
+      <if test="roomNumber != null">
+        room_number = #{roomNumber,jdbcType=VARCHAR},
+      </if>
+      <if test="parkingSpace != null">
+        parking_Space = #{parkingSpace,jdbcType=VARCHAR},
+      </if>
+      <if test="proId != null">
+        pro_id = #{proId,jdbcType=VARCHAR},
+      </if>
+      <if test="status != null">
+        status = #{status,jdbcType=VARCHAR},
+      </if>
+      <if test="isDefault != null">
+        is_Default = #{isDefault,jdbcType=VARCHAR},
+      </if>
+      <if test="accountId != null">
+        account_id = #{accountId,jdbcType=VARCHAR},
+      </if>
+      <if test="deviceMac != null">
+        device_Mac = #{deviceMac,jdbcType=VARCHAR},
+      </if>
+      <if test="padMac != null">
+        pad_Mac = #{padMac,jdbcType=VARCHAR},
+      </if>
+      <if test="waterDeviceId != null">
+        water_Device_id = #{waterDeviceId,jdbcType=VARCHAR},
+      </if>
+      <if test="roomName != null">
+        room_name = #{roomName,jdbcType=VARCHAR},
+      </if>
+      <if test="area != null">
+        area = #{area,jdbcType=VARCHAR},
+      </if>
+      <if test="houseType != null">
+        house_type = #{houseType,jdbcType=VARCHAR},
+      </if>
+      <if test="unitId != null">
+        unit_id=#{unitId,jdbcType=VARCHAR},
+      </if>
+      <if test="internalArea != null">
+        internal_area=#{internalArea,jdbcType=VARCHAR},
+      </if>
+      <if test="feeRoomType != null">
+        fee_room_type=#{feeRoomType,jdbcType=VARCHAR},
+      </if>
+      <if test="typeId != null">
+        type_id=#{typeId,jdbcType=VARCHAR},
+      </if>
+      <if test="houseTypeId != null">
+        house_type_id=#{houseTypeId,jdbcType=VARCHAR},
+      </if>
+    </set>
+    where room_number = #{oldRoomNumber,jdbcType=VARCHAR} and floor = #{floor,jdbcType=VARCHAR}
+  </update>
+
+</mapper>

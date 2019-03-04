@@ -1,0 +1,552 @@
+package com.porui.webapi.system.controller.safety;
+
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+import javax.servlet.ServletInputStream;
+import javax.servlet.http.HttpServletRequest;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestMethod;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
+import com.alibaba.dubbo.common.json.JSON;
+import com.alibaba.dubbo.common.json.JSONArray;
+import com.alibaba.dubbo.common.json.JSONObject;
+import com.porui.hjl.common.core.annotaion.AppRole;
+import com.porui.hjl.common.core.annotaion.RequireRole;
+import com.porui.hjl.commons.bean.socket.Push2WebMsg;
+import com.porui.hjl.commons.utils.DateUtils;
+import com.porui.hjl.commons.utils.StringUtils;
+import com.porui.hjl.provider.res.entity.community.RSCommunity;
+import com.porui.hjl.provider.res.entity.community.RSFloor;
+import com.porui.hjl.provider.res.entity.msg.RSUserMsg;
+import com.porui.hjl.provider.res.entity.safety.RSAlarmMessage;
+import com.porui.hjl.provider.res.entity.safety.RSDevice;
+import com.porui.hjl.provider.res.entity.safety.RSDeviceModel;
+import com.porui.hjl.provider.res.entity.safety.mode.RSLCParam;
+import com.porui.hjl.provider.res.service.community.ICommunitySafetyInfoService;
+import com.porui.hjl.provider.res.service.community.ICommunityService;
+import com.porui.hjl.provider.res.service.community.IFloorService;
+import com.porui.hjl.provider.res.service.msg.IUserMsgService;
+import com.porui.hjl.provider.res.service.safety.IAlarmMessageService;
+import com.porui.hjl.provider.res.service.safety.IDeviceModelService;
+import com.porui.hjl.provider.res.service.safety.IDeviceService;
+import com.porui.hjl.provider.user.entity.UMProRoom;
+import com.porui.hjl.provider.user.entity.UMProprietor;
+import com.porui.hjl.provider.user.entity.UMProprietorFamily;
+import com.porui.hjl.provider.user.entity.UMRoom;
+import com.porui.hjl.provider.user.entity.UMRoomSendIdLink;
+import com.porui.hjl.provider.user.service.IProRoomService;
+import com.porui.hjl.provider.user.service.IProprietorFamilyService;
+import com.porui.hjl.provider.user.service.IProprietorService;
+import com.porui.hjl.provider.user.service.IRoomSendService;
+import com.porui.hjl.provider.user.service.IRoomService;
+import com.porui.webapi.system.entity.safety.LeChengAlarmMessageEntity;
+import com.porui.webapi.system.service.delayDefence.DelayAlarmService;
+import com.porui.webapi.system.socket.MessagePushSocketServer;
+import com.porui.webapi.system.util.LeChengUtils;
+import com.porui.webapi.system.util.PushUtils;
+
+import io.swagger.annotations.Api;
+import io.swagger.annotations.ApiOperation;
+import io.swagger.annotations.ApiParam;
+
+
+/**
+ * 乐橙安防
+ * Created by pichun on 2017-04-01.
+ */
+@Api(value = "乐橙安防接口",description = "乐橙安防接口")
+@RestController
+@RequestMapping(value = "/api/lecheng")
+public class LeChengController {
+	
+	private String url = "";
+	
+    private Logger logger= LoggerFactory.getLogger(LeChengController.class);
+    
+    @Autowired
+    private IDeviceService deviceService;
+    
+    @Autowired
+    private IDeviceModelService deviceModelService;
+    
+    @Autowired
+    private IRoomService roomService;
+    
+    @Autowired
+    private IAlarmMessageService alarmMessageService;
+	
+	@Autowired
+    private IFloorService floorService;
+    
+    @Autowired
+    private IProRoomService proRoomService;
+    
+    @Autowired
+    private IProprietorService proprietorService;
+    
+    @Autowired
+    private IProprietorFamilyService proprietorFamilyService;
+    
+    @Autowired
+    private IRoomSendService roomSendService;
+    
+    @Autowired
+    private ICommunityService communityService;
+    
+    @Autowired
+    private ICommunitySafetyInfoService communitySafetyInfoService;
+    
+    @Autowired
+    private IUserMsgService userMsgService;
+    
+    @ApiOperation(value="添加设备", notes="添加设备")
+    @RequestMapping(value={"addDevice"}, method= RequestMethod.POST)
+    public String addDevice(
+		@ApiParam(required=true, name="deviceId", value="设备序列号")@RequestParam(name = "deviceId")String deviceId,
+		@ApiParam(required=true, name="code", value="设备验证码")@RequestParam(name = "code")String code,
+		@ApiParam(required=true, name="deviceModelId", value="设备型号Id")@RequestParam(name = "deviceModelId")String deviceModelId,
+		@ApiParam(required=true, name="roomId", value="住房ID")@RequestParam(name = "roomId")String roomId,
+		@ApiParam(required=true, name="brandId", value="品牌ID")@RequestParam(name = "brandId")String brandId,
+		@ApiParam(required=true, name="deviceType", value="设备类型（1：摄像头；2：网关）")@RequestParam(name = "deviceType")String deviceType) throws Exception {
+    	
+    	JSONObject json = new JSONObject();
+    	
+    	Map<String,Object> params = new HashMap<String,Object>();
+    	
+    	UMRoom room = roomService.getRoom(roomId);
+    	params.put("deviceId", deviceId);
+    	params.put("code", code);
+    	params.put("token", LeChengUtils.getTokenStr(room.getComId(),communitySafetyInfoService));
+    	StringBuffer sb = new StringBuffer();
+    	sb.append(LeChengUtils.getLeChengApi( params,url+ "bindDevice", "POST", null,room.getComId(),communitySafetyInfoService));
+    	logger.info("绑定乐橙摄像头返回："+sb);
+    	
+    	if("0".equals(((JSONObject)JSON.parse(sb.toString())).getObject("result").getString("code"))){
+        	RSDeviceModel deviceModelEntity = new RSDeviceModel();
+        	deviceModelEntity.setId(deviceModelId);
+        	logger.info(deviceModelId);
+        	logger.info("添加设备------------------------,deviceModelId:"+"");
+        	deviceModelEntity = deviceModelService.get(deviceModelEntity);
+        	RSDevice device = new RSDevice();
+    		device.setBrandId(brandId);
+    		device.setDeviceModelId(deviceModelId);
+    		device.setDeviceModelName(deviceModelEntity.getName());
+    		device.setId(StringUtils.getUUID());
+    		device.setImgUrl(deviceModelEntity.getImgUrl());
+    		device.setRoomId(roomId);
+    		device.setName(deviceId);
+    		device.setCategoryCode(deviceType);
+    		params.remove("token");
+    		device.setJson(JSON.json(params));
+    		deviceService.add(device);
+    		json.put("msg", "添加成功");
+			json.put("status", "0");
+    	}else{
+	        json.put("msg", "添加失败");
+			json.put("status", "1");
+    	}
+    	return JSON.json(json);
+    }
+    
+    @ApiOperation(value="删除设备", notes="删除设备")
+    @RequestMapping(value={"deleteDevice"}, method= RequestMethod.POST)
+    public String deleteDevice(
+    							@ApiParam(required=true, name="deviceId", value="设备ID")@RequestParam(name = "deviceId")String deviceId) throws Exception {
+    	
+    	JSONObject json = new JSONObject();
+    	
+    	StringBuffer sb = new StringBuffer();
+    	RSDevice deviceObj = new RSDevice();
+    	deviceObj.setId(deviceId);
+    	deviceObj = deviceService.get(deviceObj);
+    	UMRoom room = roomService.getRoom(deviceObj.getRoomId());
+    	Map<String,Object> params = new HashMap<String,Object>();
+    	params.put("deviceId", ((JSONObject)JSON.parse(deviceObj.getJson())).get("deviceId"));
+    	params.put("token", LeChengUtils.getTokenStr(room.getComId(),communitySafetyInfoService));
+    	
+    	sb.append(LeChengUtils.getLeChengApi(params, "unBindDevice", "POST", null,room.getComId(),communitySafetyInfoService));
+    	
+//    	sendPost(urlHead+"/devices/"+deviceId, "", "", sb);
+    	
+    	logger.info("解绑乐橙摄像头返回："+sb);
+    	
+    	if("0".equals(((JSONObject)JSON.parse(sb.toString())).getObject("result").get("code"))){
+	        json.put("msg", "删除成功");
+			json.put("status", "0");
+			RSDevice device = new RSDevice();
+			device.setId(deviceId);
+			device.setStatus("9");
+			deviceService.delete(device);
+    	}else{
+	        json.put("msg", "删除失败");
+			json.put("status", "1");
+    	}
+    	return JSON.json(json);
+    }
+    
+    @ApiOperation(value="修改设备名称", notes="修改设备名称")
+    @RequestMapping(value={"updateDevice"}, method= RequestMethod.POST)
+    public String updateDevice(@ApiParam(required=true, name="deviceId", value="设备ID")@RequestParam(name = "deviceId")String deviceId,
+    							@ApiParam(required=true, name="name", value="探测器名称")@RequestParam(name = "name")String name) throws Exception {
+    	JSONObject json = new JSONObject();
+    	RSDevice device = new RSDevice();
+    	device.setId(deviceId);
+    	device.setName(name);
+    	if(deviceService.update(device)){
+	        json.put("msg", "修改成功");
+			json.put("status", "0");
+    	}else{
+	        json.put("msg", "修改失败");
+			json.put("status", "1");
+    	}
+    	return JSON.json(json);
+    }
+    
+    @ApiOperation(value="获取单个设备信息", notes="获取单个设备信息")
+    @RequestMapping(value={"getDeviceInfo"}, method= RequestMethod.GET)
+    public String getDeviceInfo(@ApiParam(required=true, name="deviceId", value="设备ID")@RequestParam(required = true,name = "deviceId")String deviceId,
+    		@ApiParam(required=true, name="roomId", value="住房ID")@RequestParam(required = true,name = "roomId")String roomId					
+    		) throws Exception {
+    	JSONObject json = new JSONObject();
+    	try{
+    		UMRoom room = roomService.getRoom(roomId);
+    		Map<String,Object> params = new HashMap<String,Object>();
+        	params.put("deviceId", deviceId);
+        	params.put("token", LeChengUtils.getTokenStr(room.getComId(),communitySafetyInfoService));
+        	json.put("data", (JSONObject)JSON.parse(LeChengUtils.getLeChengApi(params, "bindDeviceInfo", "POST", null,room.getComId(),communitySafetyInfoService)));
+	        json.put("msg", "成功");
+			json.put("status", "0");
+    	}catch(Exception e){
+    		logger.info("获取乐橙单个设备信息出错！！！",e);
+    		json.put("msg", "失败");
+			json.put("status", "1");
+    	}
+    	return JSON.json(json);
+    }
+    
+    @ApiOperation(value="获取单个设备信息(根据乐橙ID)", notes="获取单个设备信息(根据乐橙ID)")
+    @RequestMapping(value={"getDeviceInfoByLeCheng"}, method= RequestMethod.GET)
+    public String getDeviceInfoByLeCheng(@ApiParam(required=true, name="deviceId", value="设备ID")@RequestParam(required = true,name = "deviceId")String deviceId
+    							) throws Exception {
+    	JSONObject json = new JSONObject();
+    	try{
+    		RSDevice device = new RSDevice();
+    		device = deviceService.getBySerial("\""+deviceId+"\"");
+    		RSLCParam param = JSON.parse(device.getJson(),RSLCParam.class);
+    		device.setLcParam(param);
+        	json.put("data", device);
+	        json.put("msg", "成功");
+			json.put("status", "0");
+    	}catch(Exception e){
+    		logger.info("获取乐橙单个设备信息出错！！！",e);
+    		json.put("msg", "失败");
+			json.put("status", "1");
+    	}
+    	return JSON.json(json);
+    }
+    
+    @ApiOperation(value="获取登录token", notes="获取登录token")
+    @RequestMapping(value={"getToken"}, method= RequestMethod.GET)
+    public String getToken(String roomId) throws Exception {
+    	UMRoom room = roomService.getRoom(roomId);
+    	JSONObject json = new JSONObject();
+		json.put("data", LeChengUtils.getTokenStr(room.getComId(),communitySafetyInfoService));
+        json.put("msg", "成功");
+		json.put("status", "0");
+    	return JSON.json(json);
+    }
+    
+    @ApiOperation(value="设置乐橙回调地址", notes="设置乐橙回调地址")
+    @RequestMapping(value={"setMessageCallback"}, method= RequestMethod.GET)
+    @RequireRole(value={AppRole.SYS_ADMIN})
+    public String setMessageCallback(String url,
+    		@ApiParam(required=false, name="comId", value="社区ID")@RequestParam(required=false)String comId) throws Exception {
+    	JSONObject json = new JSONObject();
+    	List<String> list = new ArrayList<String>();
+    	if(StringUtils.isBlank(comId)){
+    		RSCommunity community = new RSCommunity();
+    		List<RSCommunity> communityList = communityService.getCommunity(community);
+    		for(RSCommunity entity : communityList){
+    			try{
+    				if(!list.contains(entity.getId())){
+		    			Map<String,Object> params = new HashMap<String,Object>();
+		            	params.put("token", LeChengUtils.getTokenStr(entity.getId(),communitySafetyInfoService));
+		            	params.put("status", "on");
+		            	//"http://www.hjlapp.com:9202/api/lecheng/receiveMsg"
+		            	params.put("callbackUrl", url);
+		            	params.put("callbackFlag", "alarm");
+		            	
+		        		json.put("data", LeChengUtils.getLeChengApi(params, "setMessageCallback", "POST", null,comId,communitySafetyInfoService));
+		                json.put("msg", "成功");
+		        		json.put("status", "0");
+		        		list.add(entity.getId());
+    				}
+    			}catch(Exception e){
+    				logger.info("社区ID"+entity.getId());
+    			}
+    		}
+    	}else{
+    		for(String comIdStr : comId.split(",")){
+    			try{
+	    			Map<String,Object> params = new HashMap<String,Object>();
+	            	params.put("token", LeChengUtils.getTokenStr(comIdStr,communitySafetyInfoService));
+	            	params.put("status", "on");
+	            	//"http://www.hjlapp.com:9202/api/lecheng/receiveMsg"
+	            	params.put("callbackUrl", url);
+	            	params.put("callbackFlag", "alarm");
+	            	
+	        		json.put("data", LeChengUtils.getLeChengApi(params, "setMessageCallback", "POST", null,comId,communitySafetyInfoService));
+	                json.put("msg", "成功");
+	        		json.put("status", "0");
+	    		}catch(Exception e){
+					logger.info("社区ID"+comIdStr);
+				}
+    		}
+    	}
+    	return JSON.json(json);
+    }
+    
+    @ApiOperation(value="接收乐橙推送POST接口", notes="接收乐橙推送POST接口")
+    @RequestMapping(value={"receiveMsg"}, method= RequestMethod.POST)
+    public String receiveMsg(
+    		HttpServletRequest request,
+    		@ApiParam(required=true, name="params", value="接收乐橙推送消息")@RequestBody(required=true)LeChengAlarmMessageEntity params) throws Exception {
+    	try{
+    		
+//    		"params": {
+//    	      "id":"2447736561",//报警消息id,对应“查询用户报警信息”接口返回的alarmId
+//    	      "cid":"0",//设备通道号
+//    	      "type":"1",//报警类型（0：人体红外   1：动态监测）
+//    	      "time":"1475052555",//报警时间
+//    	      "did":"2F0476DPAL01615",//设备序列号
+//    	      "cname":"2F0476DPAL01615",//通道名称
+//    	}
+    		try{
+	    		ServletInputStream is = request.getInputStream();
+	    		byte[] buf = new byte[1024];
+	    		int len = -1;
+	    		while ((len = is.read(buf)) != -1) {
+	    			logger.info(buf.toString());
+	    			logger.info(new String(buf, "utf-8").substring(0, len));
+	    		}
+    		}catch(Exception e){
+    			logger.info("is获取推送数据！！！",e);
+    		}
+    		
+    		logger.info(JSON.json(params));
+			RSDevice device = new RSDevice();
+			device = deviceService.getBySerial("\""+params.getDid()+"\"");
+			UMRoom room = roomService.getRoom(device.getRoomId());
+			if ("1".equals(room.getDelayAlarm())) {
+				Boolean needAlarm = DelayAlarmService.delayAlarm(room);
+				if (needAlarm) {
+					processMessage(room, params, device);
+				} else {
+					logger.info("不需要再推送");
+				}
+				
+			} else {
+				processMessage(room, params, device);
+			}
+			
+    	}catch(Exception e){
+    		logger.info("乐橙推送消息接收处理失败",e);
+    	}
+    	return "success";
+    }
+    
+    private void processMessage(UMRoom room,LeChengAlarmMessageEntity params, RSDevice device) throws Exception {
+    	RSAlarmMessage alarmMessage = new RSAlarmMessage();
+		alarmMessage.setDeviceName(device.getName());
+		alarmMessage.setId(StringUtils.getUUID());
+		alarmMessage.setBrandId(device.getBrandId());
+		alarmMessage.setRoomId(device.getRoomId());
+//			alarmMessage.setMsgType(message.getMsgType());
+		alarmMessage.setAlarmType(params.getType());
+		
+		long time = Long.valueOf(params.getTime()+"000");
+		Date date = new Date(time);
+		alarmMessage.setTime(DateUtils.format(date,"yyyy-MM-dd HH:mm:ss"));
+		alarmMessage.setDeviceSerial(params.getDid());
+		alarmMessage.setComId(room.getComId());
+		alarmMessage.setBuildingId(room.getBuilding());
+		alarmMessage.setIsReadApp("0");
+		alarmMessage.setIsReadPc("0");
+		alarmMessage.setDeleteStatusApp("1");
+		alarmMessage.setDeleteStatusPc("1");
+		alarmMessage.setFloorId(room.getFloor());
+//			alarmMessage.setAlarmPicUrl(message.getPicUrl());
+//			alarmMessage.setChannelNo(message.getCn());
+		try{
+			alarmMessage.setAlarmDeviceImgUrl(device.getImgUrl());
+		}catch(Exception e){
+			logger.info("乐橙报警消息查询乐橙接口出错",e);
+		}
+		//0：人体红外   1：动态监测
+		alarmMessage.setAlarmTypeName("0".equals(alarmMessage.getAlarmType())?"人体红外":"动态监测");
+		alarmMessageService.add(alarmMessage);
+		//开始进行报警推送到APP
+		
+		try{
+			logger.info("推送乐橙报警消息到APP");
+	    	UMProRoom proRoom = new UMProRoom();
+	    	proRoom.setRoomId(device.getRoomId());
+	    	proRoom.setCheckStatus("1");
+	    	List<UMProRoom> list = proRoomService.getList(proRoom);
+	    	List<UMRoomSendIdLink> roomSendList = new ArrayList<UMRoomSendIdLink>();
+	    	for(UMProRoom proRoomEntity : list){
+	    		RSUserMsg userMsg = new RSUserMsg();
+	    		UMProprietor proprietor = proprietorService.getProprietor(proRoomEntity.getProId());
+	    		if(proprietor != null && StringUtils.isNotBlank(proprietor.getAppUserId())){
+	    			roomSendList.addAll(roomSendService.getProSendIdLinksByProId(proprietor.getAppUserId()));
+	    			userMsg.setUserId(proprietor.getAppUserId());
+	    			userMsg.setComId(proprietor.getComId());
+	    		}
+	    		UMProprietorFamily proprietorFamily = proprietorFamilyService.getProprietor(proRoomEntity.getProId());
+	    		if(proprietorFamily != null && StringUtils.isNotBlank(proprietorFamily.getAppUserId())){
+	    			roomSendList.addAll(roomSendService.getProSendIdLinksByProId(proprietorFamily.getAppUserId()));
+	    			userMsg.setUserId(proprietorFamily.getAppUserId());
+	    			userMsg.setComId(proprietorFamily.getComId());
+	    		}
+	    		userMsg.setMsgId(alarmMessage.getId());
+	    		userMsg.setMsgType("alarm");
+	    		userMsg.setReadStatus("0");
+    			userMsgService.add(userMsg);
+    			try{
+    				if(StringUtils.isNotBlank(room.getPadMac())){
+	    				userMsg.setUserId(room.getPadMac());
+	    				userMsgService.add(userMsg);
+    				}
+    			}catch(Exception e){
+    				logger.info("添加大屏未读消息统计数据出错！！",e);
+    			}
+	    	}
+	    	RSCommunity community = communityService.getCommunity(room.getComId());
+	    	RSFloor floor = floorService.getFloor(room.getFloor());
+	    	Map<String,String> map = new HashMap<String,String>();
+	    	map.put("alert", "报警消息");
+	    	map.put("msg", "您"+community.getCommunityName()+floor.getFloorNumber()+"-"+room.getRoomNumber()+(StringUtils.isBlank(alarmMessage.getDetectorName())?alarmMessage.getDeviceName():alarmMessage.getDetectorName())+alarmMessage.getAlarmTypeName());
+	    	map.put("type", "1");
+//	    	map.put("safetyType", alarmMessage.getAlarmType());
+	    	PushUtils.push(map,roomSendList,room.getComId(),"1");
+	    	roomSendList.clear();
+	    	if(StringUtils.isNotBlank(room.getPadMac())){
+	    		roomSendList.addAll(roomSendService.getProSendIdLinksByProId(room.getPadMac()));
+	    	}
+	    	map.clear();
+	    	map.put("type", "1");
+	    	map.put("safetyType", alarmMessage.getAlarmType());
+	    	PushUtils.push(map,roomSendList,room.getComId(),"2");
+	    	try{
+		    	//推送物业端
+		    	Map<String,Object> param = new HashMap<String,Object>();
+	    		param.put("comId", room.getComId());
+	    		param.put("isReadPc", "0");
+	    		param.put("deleteStatusPc", "1");
+	    		Push2WebMsg msgPush = new Push2WebMsg("102", alarmMessageService.getList(param)==null?0:alarmMessageService.getList(param).size());
+	    		try{
+	    			if(msgPush.getUnReadCount()>0){
+			    		if(MessagePushSocketServer.getInstance().sendMessage(room.getComId(), msgPush)){
+			    			logger.info("报警消息推送物业端成功！！！-------"+msgPush.getUnReadCount());
+			    		}else{
+			    			logger.info("报警消息推送物业端失败！！！-------");
+			    		}
+	    			}
+	    		}catch(Exception e){
+	    			logger.info("报警消息推送物业端失败！！！"+e.getMessage());
+	    		}
+	    	}catch(Exception e){
+	    		logger.info("报警消息物业推送出错",e);
+	    	}
+    	}catch(Exception e){
+    		e.printStackTrace();
+    	}
+		
+	}
+    
+    @ApiOperation(value="镜像翻转", notes="镜像翻转")
+    @RequestMapping(value={"modifyFrameReverseStatus"}, method= RequestMethod.GET)
+    public String modifyFrameReverseStatus(
+    		@ApiParam(required=true, name="deviceId", value="设备序列号")@RequestParam(required=true,name = "deviceId")String deviceId,
+    		@ApiParam(required=true, name="direction", value="翻转状态（normal：正常；reverse：翻转）")@RequestParam(required=true,name = "direction")String direction,
+    		@ApiParam(required=true, name="roomId", value="住房ID")@RequestParam(required=true,name = "roomId")String roomId
+    		
+    		) throws Exception {
+    	JSONObject json = new JSONObject();
+    	try{
+    		UMRoom room = roomService.getRoom(roomId);
+	    	Map<String,Object> params = new HashMap<String,Object>();
+	    	params.put("deviceId", deviceId);
+	    	params.put("token", LeChengUtils.getTokenStr(room.getComId(),communitySafetyInfoService));
+	    	String sb = LeChengUtils.getLeChengApi(params, "bindDeviceInfo", "POST", null,room.getComId(),communitySafetyInfoService);
+	    	JSONObject job = new JSONObject();
+	    	job=(JSONObject)JSON.parse(sb);
+	    	JSONArray array = job.getObject("result").getObject("data").getArray("channels");
+	    	for(int i = 0 ; i < array.length() ; i ++){
+	    		int channelId = 0;
+	    		try{
+	    			JSONObject object = array.getObject(i);
+	    			channelId = object.getInt("channelId",-100);
+	    			if(channelId!=-100){
+	    				params.put("channelId", channelId);
+	    				params.put("direction", direction);
+	    				sb = LeChengUtils.getLeChengApi(params, "modifyFrameReverseStatus", "POST", null,room.getComId(),communitySafetyInfoService);
+	    				logger.info("乐橙镜头翻转："+sb + "；"+JSON.json(params));
+	    			}
+	    		}catch(Exception e){
+	    			logger.info("镜像翻转出错！！！"+deviceId+"-----"+direction+"--------"+channelId,e);
+	    		}
+	    	}
+	    	json.put("msg", "镜像翻转成功");
+			json.put("status", "0");
+    	}catch(Exception e){
+    		logger.info("镜像翻转出错！！！",e);
+    		json.put("msg", "镜像翻转出错");
+			json.put("status", "1");
+    	}
+    	return JSON.json(json);
+    }
+    
+    @ApiOperation(value="设置乐橙token", notes="设置乐橙token")
+    @RequestMapping(value={"setToken"}, method= RequestMethod.POST)
+    @RequireRole(value={AppRole.SYS_ADMIN})
+    public String setToken(
+    		) throws Exception {
+    	JSONObject json = new JSONObject();
+    	try {
+    		boolean result = true;
+        	RSCommunity community = new RSCommunity();
+        	List<RSCommunity> communityList = communityService.getCommunity(community);
+        	for(RSCommunity entity : communityList){
+        		try{
+        			result = LeChengUtils.setToken(entity.getId(),communitySafetyInfoService);
+        		}catch(Exception e){
+        			logger.info("获取乐橙安防用户TOKEN失败！！！社区ID："+entity.getId());
+        		}
+        	}
+    		logger.info("Action status OK? : ----> "+result);
+    		if(result){
+    			json.put("status", "0");
+    		}else{
+    			json.put("status", "1");
+    		}
+    	} catch (Exception e) {
+    		logger.info("setLeChengToken",e);
+    		json.put("status", "1");
+    	}
+    	return JSON.json(json);
+    }
+    
+    
+}

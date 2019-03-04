@@ -1,0 +1,1634 @@
+package com.porui.webapi.system.controller.safety;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestMethod;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.ResponseBody;
+import org.springframework.web.bind.annotation.RestController;
+
+import com.alibaba.dubbo.common.json.JSON;
+import com.alibaba.dubbo.common.json.JSONArray;
+import com.alibaba.dubbo.common.json.JSONObject;
+import com.porui.hjl.app.crestron.service.IAppService;
+import com.porui.hjl.commons.cache.RedisUtils;
+import com.porui.hjl.commons.properties.AppContext;
+import com.porui.hjl.commons.serializer.Serializer;
+import com.porui.hjl.commons.utils.DateUtils;
+import com.porui.hjl.commons.utils.HttpSendShort;
+import com.porui.hjl.commons.utils.StringUtils;
+import com.porui.hjl.commons.utils.YSUtils;
+import com.porui.hjl.provider.res.entity.community.RSCommunitySafetyInfo;
+import com.porui.hjl.provider.res.entity.safety.RSAlarmMessage;
+import com.porui.hjl.provider.res.entity.safety.RSDetector;
+import com.porui.hjl.provider.res.entity.safety.RSDevice;
+import com.porui.hjl.provider.res.entity.safety.RSDeviceModel;
+import com.porui.hjl.provider.res.entity.safety.detectorMode.RSHaoEnDetectorParam;
+import com.porui.hjl.provider.res.entity.safety.detectorMode.RSYSDetectorParam;
+import com.porui.hjl.provider.res.entity.safety.mode.RSHaoEnParam;
+import com.porui.hjl.provider.res.entity.safety.mode.RSLCParam;
+import com.porui.hjl.provider.res.entity.safety.mode.RSYSParam;
+import com.porui.hjl.provider.res.entity.scene.RSScene;
+import com.porui.hjl.provider.res.service.community.ICommunitySafetyInfoService;
+import com.porui.hjl.provider.res.service.safety.IAlarmMessageService;
+import com.porui.hjl.provider.res.service.safety.IDeviceModelService;
+import com.porui.hjl.provider.res.service.safety.IDeviceService;
+import com.porui.hjl.provider.res.service.scene.ISceneService;
+import com.porui.hjl.provider.user.entity.UMRoom;
+import com.porui.hjl.provider.user.entity.UMRoomYsIdLink;
+import com.porui.hjl.provider.user.service.IRoomService;
+import com.porui.hjl.provider.user.service.IRoomYsService;
+import com.porui.webapi.system.thread.DefenceThread;
+import com.porui.webapi.system.util.DelayAlarmUtils;
+import com.porui.webapi.system.util.HaoEnUtils;
+import com.porui.webapi.system.util.LeChengUtils;
+
+import io.swagger.annotations.Api;
+import io.swagger.annotations.ApiOperation;
+import io.swagger.annotations.ApiParam;
+
+
+/**
+ * 萤石安防
+ * Created by pichun on 2017-04-01.
+ */
+@Api(value = "萤石安防接口",description = "萤石安防")
+@RestController
+@RequestMapping(value = "/ys")
+public class YsController {
+	
+    private Logger logger= LoggerFactory.getLogger(YsController.class);
+    
+    private static Map<String,String> haoenCategoryCode = new HashMap<String,String>();
+    
+    private static Map<String,String> haoenCategoryCodeImg = new HashMap<String,String>();
+    
+    static {
+    	
+    	haoenCategoryCode.put("33", "人体移动传感器");
+    	haoenCategoryCode.put("49", "门磁");
+    	haoenCategoryCode.put("65", "天然气报警设备");
+    	haoenCategoryCode.put("81", "烟雾报警设备");
+    	haoenCategoryCode.put("115", "水浸传感器报警设备");
+    	haoenCategoryCode.put("145", "遥控器");
+    	haoenCategoryCode.put("146", "紧急按钮");
+    	haoenCategoryCode.put("161", "温度传感类设备");
+    	
+    	haoenCategoryCodeImg.put("33", "/detector/haoen/hongwai.png");
+    	haoenCategoryCodeImg.put("49", "/detector/haoen/menci.png");
+    	haoenCategoryCodeImg.put("65", "/detector/haoen/tianranqibaojingshebei.png");
+    	haoenCategoryCodeImg.put("81", "/detector/haoen/yanwubaojingshebei.png");
+    	haoenCategoryCodeImg.put("115", "/detector/haoen/shuiqinchuanganqibaojingshebei.png");
+    	haoenCategoryCodeImg.put("145", "/detector/haoen/yaokongqi.png");
+    	haoenCategoryCodeImg.put("146", "/detector/haoen/jinjianniu.png");
+    	haoenCategoryCodeImg.put("161", "/detector/haoen/wenduchuanganleishebei.png");
+    }
+    
+    @Autowired
+    private IRoomYsService roomYsService;
+    
+    @Autowired
+    private IAlarmMessageService alarmMessageService;
+    
+    @Autowired
+    private IDeviceService deviceService;
+    
+    @Autowired
+    private IDeviceModelService deviceModelService;
+    
+    @Autowired
+    private IRoomService roomService;
+    
+    @Autowired
+    private ICommunitySafetyInfoService communitySafetyInfoService;
+    
+    @Autowired
+	private ISceneService sceneService;
+    
+    @Autowired
+    private IAppService appService;
+    
+    @ApiOperation(value="获取摄像头列表", notes="获取摄像头列表")
+    @ResponseBody
+    @RequestMapping(value={"getDeviceAndDetectorList"}, method= RequestMethod.POST)
+    public String getDeviceAndDetectorList(
+				    		@ApiParam(required=true, name="roomId", value="住房ID")@RequestParam(name = "roomId",required=true)String roomId) throws Exception {
+    	JSONObject json = new JSONObject();
+    	
+    	//何SB测试住房设备
+    	if(roomId.equals("e739736064c54430902acb24f24dddc7")||roomId.equals("41d1a9dcf9614877b0752c2a28cd4f31")){
+    		try{
+    	    	String imgUrl = AppContext.getInstance().getProperty("imgBackGround");
+        		
+        		json.put("msg", "操作成功");
+    			json.put("status", "0");
+    			
+    			List<RSDevice> deviceList = new ArrayList<RSDevice>();
+    			RSDevice device1 = new RSDevice();
+    			device1.setId("11111111");
+    			device1.setRoomId(roomId);
+    			device1.setName("摄像头");
+    			device1.setBrandId("1");
+    			device1.setIsOnline("1");
+    			device1.setCategoryCode("1");
+    			device1.setDeviceModelId("1");
+    			device1.setDeviceModelName("摄像头1");
+    			device1.setImgUrl("/root/pic/backGroundImg/device/icon_shexiangtou@3x.png");
+    			device1.setJson("{\"deviceSerial\":\"33333333\",\"validateCode\":\"FKJHKE\",\"deviceVersion\":\"V2.3.0 build 170911\"}");
+    			
+    			RSDevice device2 = new RSDevice();
+    			device2.setId("11111111");
+    			device2.setRoomId(roomId);
+    			device2.setName("网关");
+    			device2.setBrandId("1");
+    			device2.setIsOnline("1");
+    			device2.setCategoryCode("2");
+    			device2.setDeviceModelId("3");
+    			device2.setDeviceModelName("网关");
+    			device2.setImgUrl("/root/pic/backGroundImg/device/icon_wangguan@3x.png");
+    			device2.setJson("{\"deviceSerial\":\"44444444\",\"validateCode\":\"AKHHKE\",\"deviceVersion\":\"V2.3.0 build 170911\"}");
+    			
+    			deviceList.add(device1);
+    			deviceList.add(device2);
+    			
+    			List<RSDevice> ysDeviceList = new ArrayList<RSDevice>();
+    			List<RSDevice> haoEnDeviceList = new ArrayList<RSDevice>();
+    			for(RSDevice deviceEntity : deviceList){
+    				if(deviceEntity.getBrandId().equals("1")){
+    					ysDeviceList.add(deviceEntity);
+    				}else if(deviceEntity.getBrandId().equals("2")){
+    					haoEnDeviceList.add(deviceEntity);
+    				}
+    			}
+    			List<RSDetector> detectors = new ArrayList<RSDetector>();
+    			for(RSDevice deviceEntity : ysDeviceList){
+    				if(deviceEntity.getCategoryCode().equals("1")){
+    					RSYSParam param = JSON.parse(deviceEntity.getJson(),RSYSParam.class);
+    			    	deviceEntity.setIsOnline("0");
+		    			param.setIsHide(true);
+    			    	deviceEntity.setYsParam(param);
+    			    	
+    				}else if(deviceEntity.getCategoryCode().equals("2")){
+    					RSYSParam param = JSON.parse(deviceEntity.getJson(),RSYSParam.class);
+    			    	deviceEntity.setIsOnline("1");
+    			    	deviceEntity.setYsParam(param);
+    				}
+		    	}
+    			
+    			
+    			RSDetector detector1 = new RSDetector();
+    			detector1.setName("紧急按钮");
+	    		RSYSDetectorParam ysDetectorParam1 = new RSYSDetectorParam();
+	    		ysDetectorParam1.setDeviceSerial("1111111111111");
+	    		ysDetectorParam1.setDetectorSerial("1111111111111");
+	    		detector1.setYsDetectorParam(ysDetectorParam1);
+    			detector1.setCategoryCode("1");
+    			detector1.setImgUrl(imgUrl+"/detector/icon_jinjianniu@3x.png");
+    			detector1.setOnlineStatus("0");
+    			
+    			
+    			RSDetector detector2 = new RSDetector();
+    			detector2.setName("燃气");
+	    		RSYSDetectorParam ysDetectorParam2 = new RSYSDetectorParam();
+	    		ysDetectorParam2.setDeviceSerial("2323232323");
+	    		ysDetectorParam2.setDetectorSerial("3232323232323");
+	    		detector2.setYsDetectorParam(ysDetectorParam2);
+    			detector2.setOnlineStatus("0");
+				detector2.setCategoryCode("2");
+    			detector2.setImgUrl(imgUrl+"/detector/icon_ranqiganyingqi@3x.png");
+    			
+    			RSDetector detector3 = new RSDetector();
+    			detector3.setName("门磁");
+	    		RSYSDetectorParam ysDetectorParam3 = new RSYSDetectorParam();
+	    		ysDetectorParam3.setDeviceSerial("2323232323");
+	    		ysDetectorParam3.setDetectorSerial("3232323232323");
+	    		detector3.setYsDetectorParam(ysDetectorParam3);
+    			detector3.setOnlineStatus("0");
+    			detector3.setCategoryCode("3");
+    			detector3.setImgUrl(imgUrl+"/detector/icon_menci@3x.png");
+	    		
+	    		RSDetector detector4 = new RSDetector();
+	    		detector4.setName("水浸");
+	    		RSYSDetectorParam ysDetectorParam4 = new RSYSDetectorParam();
+	    		ysDetectorParam4.setDeviceSerial("2323232323");
+	    		ysDetectorParam4.setDetectorSerial("3232323232323");
+	    		detector4.setYsDetectorParam(ysDetectorParam4);
+    			detector4.setOnlineStatus("0");
+    			detector4.setCategoryCode("4");
+    			detector4.setImgUrl(imgUrl+"/detector/icon_shuiqinchuangganqi@3x.png");
+	    		
+	    		RSDetector detector5 = new RSDetector();
+	    		detector5.setName("移动探测器");
+	    		RSYSDetectorParam ysDetectorParam5 = new RSYSDetectorParam();
+	    		ysDetectorParam5.setDeviceSerial("2323232323");
+	    		ysDetectorParam5.setDetectorSerial("3232323232323");
+	    		detector5.setYsDetectorParam(ysDetectorParam5);
+    			detector5.setOnlineStatus("0");
+    			detector5.setCategoryCode("5");
+    			detector5.setImgUrl(imgUrl+"/detector/icon_hongwaiganyingqi@3x.png");
+    			detector5.setName("移动探测器");
+    			
+    			
+    			
+	    		detectors.add(detector1);
+	    		detectors.add(detector2);
+	    		detectors.add(detector3);
+	    		detectors.add(detector4);
+	    		detectors.add(detector5);
+    			
+    				
+    			//萤石安防数据
+    			JSONObject resultJson = new JSONObject();
+    			resultJson.put("deviceList", (JSONArray)JSON.parse(Serializer.serializeJson(ysDeviceList)));
+    			resultJson.put("detectorList", (JSONArray)JSON.parse(Serializer.serializeJson(detectors)));
+    	    	
+    			//豪恩安防数据
+    			resultJson.put("haoEnDeviceList", (JSONArray)JSON.parse(Serializer.serializeJson(haoEnDeviceList)));
+    			resultJson.put("isDefence", RedisUtils.instance().get(roomId.getBytes())==null?1:RedisUtils.instance().get(roomId.getBytes()));
+    			int mark = 15;
+    			resultJson.put("mark", mark);
+    			json.put("data", resultJson);
+        	}catch(Exception e){
+        		logger.info("",e);
+        		json.put("msg", "操作失败");
+    			json.put("status", "1");
+        	}
+        	return JSON.json(json);
+    	}
+    	
+    	//正式数据
+    	JSONObject resultData = new JSONObject();
+    	try{
+	    	String imgUrl = AppContext.getInstance().getProperty("imgBackGround");
+	    	UMRoom room = roomService.getRoom(roomId);
+	    	
+    		json.put("msg", "操作成功");
+			json.put("status", "0");
+			RSDevice device = new RSDevice();
+			device.setRoomId(roomId);
+			List<RSDevice> deviceList = deviceService.getList(device);
+			List<RSDevice> ysDeviceList = new ArrayList<RSDevice>();
+			List<RSDevice> haoEnDeviceList = new ArrayList<RSDevice>();
+			List<RSDevice> leChengDeviceList = new ArrayList<RSDevice>();
+			for(RSDevice deviceEntity : deviceList){
+				if(deviceEntity.getBrandId().equals("1")){
+					ysDeviceList.add(deviceEntity);
+				}else if(deviceEntity.getBrandId().equals("2")){
+					haoEnDeviceList.add(deviceEntity);
+				}else if(deviceEntity.getBrandId().equals("3")){
+					leChengDeviceList.add(deviceEntity);
+				}
+			}
+			//萤石
+			List<RSDetector> detectors = new ArrayList<RSDetector>();
+			
+			Map<String,Object> paramCommunitySafetyInfo = new HashMap<String,Object>();
+	    	paramCommunitySafetyInfo.put("comId", room.getComId());
+	    	paramCommunitySafetyInfo.put("brandId", "1");
+    		List<RSCommunitySafetyInfo> communitySafetyInfoList = communitySafetyInfoService.getList(paramCommunitySafetyInfo);
+    		String appKey = communitySafetyInfoList.get(0).getAppKey();
+    		String secret = communitySafetyInfoList.get(0).getAppSecret();
+	    	String adminAccessToken = YSUtils.getAdminAccessToken(appKey, secret);
+			
+			for(RSDevice deviceEntity : ysDeviceList){
+				try{
+					if(deviceEntity.getCategoryCode().equals("1")){
+						RSYSParam param = JSON.parse(deviceEntity.getJson(),RSYSParam.class);
+				    	StringBuffer sbDevice = new StringBuffer();
+				    	HttpSendShort.sendStrOfPost("https://open.ys7.com/api/lapp/device/info", "accessToken="+adminAccessToken+"&deviceSerial="+param.getDeviceSerial(), "", sbDevice);
+				    	JSONObject resultJsonDevice = ((JSONObject)JSON.parse(sbDevice.toString()));
+				    	deviceEntity.setIsOnline(resultJsonDevice.getObject("data").getInt("status", 0)+"");
+				    	
+				    	StringBuffer sb = new StringBuffer();
+						//摄像头遮蔽状态
+				    	HttpSendShort.sendStrOfPost("https://open.ys7.com/api/lapp/device/scene/switch/status", "accessToken="+adminAccessToken+"&deviceSerial="+param.getDeviceSerial(), "", sb);
+				    	JSONObject resultJson = ((JSONObject)JSON.parse(sb.toString()));
+				    	if(resultJson.getString("code").equals("200")){
+				    		try{
+				    			param.setIsHide(resultJson.getObject("data").getInt("enable",0)==1);
+				    		}catch(Exception e){
+				    			//logger.info("",e);
+				    			logger.info(param.getDeviceSerial() + "没有遮蔽功能");
+				    		}
+				    	}
+				    	deviceEntity.setYsParam(param);
+				    	
+					}else if(deviceEntity.getCategoryCode().equals("2")){
+						RSYSParam param = JSON.parse(deviceEntity.getJson(),RSYSParam.class);
+						StringBuffer sb = new StringBuffer();
+						HttpSendShort.sendStrOfPost("https://open.ys7.com/api/lapp/device/info", "accessToken="+adminAccessToken+"&deviceSerial="+param.getDeviceSerial(), "", sb);
+				    	JSONObject resultJson = ((JSONObject)JSON.parse(sb.toString()));
+				    	deviceEntity.setIsOnline(resultJson.getObject("data").getInt("status", 0)+"");
+				    	deviceEntity.setYsParam(param);
+					}
+					StringBuffer sb = new StringBuffer();
+					//获取探测器列表    萤石
+			    	HttpSendShort.sendStrOfPost("https://open.ys7.com/api/lapp/detector/list", "accessToken="+adminAccessToken+"&deviceSerial="+deviceEntity.getYsParam().getDeviceSerial(), "", sb);
+			    	JSONArray array = ((JSONObject)JSON.parse(sb.toString())).getArray("data");
+			    	if(array!=null){
+				    	for(int i = 0 ; i < array.length() ; i ++){
+				    		JSONObject object = array.getObject(i);
+				    		RSDetector detector = new RSDetector();
+				    		if(StringUtils.isNotBlank(object.getString("location"))){
+				    			detector.setName(object.getString("location"));
+				    		}else{
+				    			detector.setName(object.getString("detectorTypeName"));
+				    		}
+				    		
+				    		RSYSDetectorParam ysDetectorParam = new RSYSDetectorParam();
+				    		
+				    		ysDetectorParam.setDeviceSerial(deviceEntity.getYsParam().getDeviceSerial());
+				    		
+				    		ysDetectorParam.setDetectorSerial(object.getString("detectorSerial"));
+				    		
+				    		detector.setYsDetectorParam(ysDetectorParam);
+				    		
+				    		if(object.getString("detectorType").toLowerCase().equals("callhelp")){
+				    			detector.setCategoryCode("1");
+				    			detector.setImgUrl(imgUrl+"/detector/icon_jinjianniu@3x.png");
+				    		}
+				    		if(object.getString("detectorType").toLowerCase().equals("gas")){
+				    			detector.setCategoryCode("2");
+				    			detector.setImgUrl(imgUrl+"/detector/icon_ranqiganyingqi@3x.png");
+				    		}
+				    		if(object.getString("detectorType").toLowerCase().equals("magnetometer")){
+				    			detector.setCategoryCode("3");
+				    			detector.setImgUrl(imgUrl+"/detector/icon_menci@3x.png");
+				    		}
+				    		if(object.getString("detectorType").toLowerCase().equals("waterlogging")){
+				    			detector.setCategoryCode("4");
+				    			detector.setImgUrl(imgUrl+"/detector/icon_shuiqinchuangganqi@3x.png");
+				    		}
+				    		if(object.getString("detectorType").toLowerCase().equals("pir")){
+				    			detector.setCategoryCode("5");
+				    			detector.setImgUrl(imgUrl+"/detector/icon_hongwaiganyingqi@3x.png");
+				    			detector.setName("移动探测器");
+				    		}
+				    		if(object.getString("detectorType").toLowerCase().equals("move_magnetometer")){
+				    			detector.setCategoryCode("6");
+				    			detector.setImgUrl(imgUrl+"/detector/icon_dantimenci@3x.png");
+				    		}
+				    		if(object.getString("detectorType").toLowerCase().equals("fire")){
+				    			detector.setCategoryCode("7");
+				    			detector.setImgUrl(imgUrl+"/detector/icon_yanwuganyingqi@3x.png");
+				    		}
+				    		if(object.getString("olStatus").equals("1")){
+				    			detector.setOnlineStatus("0");
+				    		}else{
+				    			Integer isDefence = RedisUtils.instance().get(roomId.getBytes())==null?1:RedisUtils.instance().get(roomId.getBytes());
+				    			if(isDefence == 0 || isDefence == 1){
+				    				//在家
+				    				if(object.getInt("atHomeEnable",0) == 1){
+				    					detector.setOnlineStatus("1");
+				    				}else{
+				    					detector.setOnlineStatus("2");
+				    				}
+				    			}else{
+				    				//外出
+				    				if(object.getInt("outerEnable",0) == 1){
+				    					detector.setOnlineStatus("1");
+				    				}else{
+				    					detector.setOnlineStatus("2");
+				    				}
+				    			}
+				    		}
+				    		detectors.add(detector);
+				    	}
+			    	}
+				}catch(Exception e){
+					logger.info("萤石设备出错！",e);
+				}
+				
+			}
+			
+			//萤石安防数据
+			resultData.put("deviceList", (JSONArray)JSON.parse(Serializer.serializeJson(ysDeviceList)));
+			resultData.put("detectorList", (JSONArray)JSON.parse(Serializer.serializeJson(detectors)));
+	    	
+			//豪恩安防数据
+			List<RSDetector> haoEnDetectors = new ArrayList<RSDetector>();
+			for(RSDevice deviceEntity : haoEnDeviceList){
+				try{
+					StringBuffer sb = new StringBuffer();
+					
+					RSHaoEnParam haoEnParam = JSON.parse(deviceEntity.getJson(),RSHaoEnParam.class);
+					
+	//				JSONObject resultJsonDevice = ((JSONObject)JSON.parse(sb.toString()));
+					
+					deviceEntity.setHaoEnParam(haoEnParam);
+					
+					
+					String token = HaoEnUtils.getTokenStr(room.getComId(),communitySafetyInfoService);
+			    	Map<String,String> headerMap = new HashMap<String,String>();
+			    	headerMap.put("Authorization","Bearer " + token);
+					sb.append(HaoEnUtils.getHaoEnApi(null, null, "/devices/"+deviceEntity.getId().split("@@@")[1], "GET", headerMap,room.getComId(),communitySafetyInfoService));
+					
+					boolean isOnline = ((JSONObject)JSON.parse(sb.toString())).getBoolean("isOnline", true);
+					if(isOnline){
+						deviceEntity.setIsOnline("1");
+					}else{
+						deviceEntity.setIsOnline("0");
+					}
+					
+					sb.setLength(0);
+					//获取探测器列表    豪恩
+					Map<String,Object> param = new HashMap<String,Object>();
+					param.put("deviceId", deviceEntity.getId().split("@@@")[1]);
+					
+	    	    	sb.append(HaoEnUtils.getHaoEnApi(null, param, "/parts", "GET", headerMap,room.getComId(),communitySafetyInfoService));
+	    	    	JSONArray array = (JSONArray)JSON.parse(sb.toString());
+	//		    	JSONArray array = ((JSONObject)JSON.parse(sb.toString())).getArray("data");
+			    	if(array!=null){
+				    	for(int i = 0 ; i < array.length() ; i ++){
+				    		JSONObject object = array.getObject(i);
+				    		RSDetector detector = new RSDetector();
+				    		
+			    			detector.setName(object.getString("name"));
+			    			detector.setCategoryCode(object.getInt("type",0)+"");
+			    			if(StringUtils.isBlank(detector.getName())){
+			    				detector.setName(haoenCategoryCode.get(detector.getCategoryCode()));
+			    			}
+			    			
+				    		RSHaoEnDetectorParam haoEnDetectorParam = new RSHaoEnDetectorParam();
+				    		
+				    		haoEnDetectorParam.setDeviceId(deviceEntity.getId());
+				    		
+				    		haoEnDetectorParam.setDetectorId(object.getString("devicePartId"));
+				    		haoEnDetectorParam.setBarcode(object.getString("barcode"));
+				    		
+				    		detector.setHaoEnDetectorParam(haoEnDetectorParam);
+				    		
+			    			detector.setImgUrl(imgUrl+haoenCategoryCodeImg.get(detector.getCategoryCode()));
+			    			
+				    		if(object.getInt("state",1)==1){
+				    			detector.setOnlineStatus("1");
+				    		}else if(object.getInt("state",1)==2){
+				    			detector.setOnlineStatus("2");
+				    		}else if(object.getInt("state",1)==3){
+				    			detector.setOnlineStatus("3");
+				    		}else if(object.getInt("state",1)==4){
+				    			detector.setOnlineStatus("4");
+				    		}else if(object.getInt("state",1)==5){
+				    			detector.setOnlineStatus("0");
+				    		}
+			    			
+				    		haoEnDetectors.add(detector);
+				    	}
+			    	}
+				}catch(Exception e){
+					logger.info("豪恩设备出错！！！",e);
+				}
+			}
+			resultData.put("haoEnDeviceList", (JSONArray)JSON.parse(Serializer.serializeJson(haoEnDeviceList)));
+			resultData.put("haoenDetectorList", (JSONArray)JSON.parse(Serializer.serializeJson(haoEnDetectors)));
+			
+			//乐橙安防数据
+			for(RSDevice deviceEntity : leChengDeviceList){
+				try{
+					if(deviceEntity.getCategoryCode().equals("1")){
+						RSLCParam param = JSON.parse(deviceEntity.getJson(),RSLCParam.class);
+				    	Map<String,Object> params = new HashMap<String,Object>();
+				    	params.put("deviceId", param.getDeviceId());
+				    	params.put("token", LeChengUtils.getTokenStr(room.getComId(),communitySafetyInfoService));
+				    	String sb = LeChengUtils.getLeChengApi(params, "deviceOnline", "POST", null,room.getComId(),communitySafetyInfoService);
+				    	try{
+				    		deviceEntity.setIsOnline(((JSONObject)JSON.parse(sb)).getObject("result").getObject("data").getString("onLine"));
+				    	}catch(Exception e){
+				    		deviceEntity.setIsOnline("0");
+				    	}
+				    	deviceEntity.setLcParam(param);
+				    	
+					}
+				}catch(Exception e){
+					logger.info("豪恩设备出错！！！",e);
+				}
+			}
+			resultData.put("leChengDeviceList", (JSONArray)JSON.parse(Serializer.serializeJson(leChengDeviceList)));
+			
+			int mark = 15;
+			boolean gateway = false;
+			boolean camera = false;
+			boolean detector1 = false;
+			boolean detector2 = false;
+			boolean detector3 = false;
+			boolean detector4 = false;
+			boolean detector5 = false;
+			boolean detector6 = false;
+			boolean detector7 = false;
+			for(RSDevice deviceEntity : ysDeviceList){
+				if(deviceEntity.getCategoryCode().equals("2")){
+					gateway = true;
+				}
+				if(deviceEntity.getCategoryCode().equals("1")){
+					camera = true;
+				}
+			}
+			for(RSDetector detector : detectors){
+				if(detector.getCategoryCode().equals("1")){
+					detector1 = true;
+				}
+				if(detector.getCategoryCode().equals("2")){
+					detector2 = true;	
+				}
+				if(detector.getCategoryCode().equals("3")){
+					detector3 = true;
+				}
+				if(detector.getCategoryCode().equals("4")){
+					detector4 = true;
+				}
+				if(detector.getCategoryCode().equals("5")){
+					detector5 = true;
+				}
+				if(detector.getCategoryCode().equals("6")){
+					detector6 = true;
+				}
+				if(detector.getCategoryCode().equals("7")){
+					detector7 = true;
+				}
+			}
+			
+			for(RSDevice deviceEntity : haoEnDeviceList){
+				gateway = true;
+				if(deviceEntity.getCategoryCode().equals("1")){
+					camera = true;
+				}
+			}
+			
+			for(RSDetector detector : haoEnDetectors){
+				if(detector.getCategoryCode().equals("146")){
+					detector1 = true;
+				}
+				if(detector.getCategoryCode().equals("65")){
+					detector2 = true;	
+				}
+				if(detector.getCategoryCode().equals("3")){
+					detector3 = true;
+				}
+				if(detector.getCategoryCode().equals("115")){
+					detector4 = true;
+				}
+				if(detector.getCategoryCode().equals("33")){
+					detector5 = true;
+				}
+				if(detector.getCategoryCode().equals("6")){
+					detector6 = true;
+				}
+				if(detector.getCategoryCode().equals("81")){
+					detector7 = true;
+				}
+			}
+			
+			for(RSDevice deviceEntity : leChengDeviceList){
+				if(deviceEntity.getCategoryCode().equals("2")){
+					gateway = true;
+				}
+				if(deviceEntity.getCategoryCode().equals("1")){
+					camera = true;
+				}
+			}
+			
+			if(gateway&&camera&&detector1&&detector2&&detector3&&detector4&&detector5&&detector6&&detector7){
+				mark = 95;
+			}else if(gateway&&camera&&detector3&&detector5){
+				mark = 75;
+			}else if(camera||(gateway&&detector5&&detector1&&detector2)){
+				mark = 45;
+			}
+			resultData.put("mark", mark);
+    	}catch(Exception e){
+    		logger.info("",e);
+    		json.put("msg", "操作失败");
+			json.put("status", "1");
+    	}
+    	resultData.put("isDefence", RedisUtils.instance().get(roomId.getBytes())==null?1:RedisUtils.instance().get(roomId.getBytes()));
+    	json.put("data", resultData);
+    	return JSON.json(json);
+    }
+    
+    
+    @ApiOperation(value="添加设备", notes="添加设备")
+    @ResponseBody
+    @RequestMapping(value={"addDevice"}, method= RequestMethod.POST)
+    public String addDevice(@ApiParam(required=true, name="deviceSerial", value="设备序列号")@RequestParam(name = "deviceSerial")String deviceSerial,
+				    		@ApiParam(required=true, name="validateCode", value="设备验证码")@RequestParam(name = "validateCode")String validateCode,
+				    		@ApiParam(required=true, name="deviceModelId", value="设备型号Id")@RequestParam(name = "deviceModelId")String deviceModelId,
+				    		@ApiParam(required=true, name="roomId", value="住房ID")@RequestParam(name = "roomId")String roomId,
+				    		@ApiParam(required=true, name="brandId", value="品牌ID")@RequestParam(name = "brandId")String brandId,
+				    		@ApiParam(required=true, name="deviceType", value="设备类型（1：摄像头；2：网关）")@RequestParam(name = "deviceType")String deviceType) throws Exception {
+    	JSONObject json = new JSONObject();
+    	UMRoom room = new UMRoom();
+    	room = roomService.getRoom(roomId);
+    	Map<String,Object> paramCommunitySafetyInfo = new HashMap<String,Object>();
+    	paramCommunitySafetyInfo.put("comId", room.getComId());
+    	paramCommunitySafetyInfo.put("brandId", "1");
+		List<RSCommunitySafetyInfo> communitySafetyInfoList = communitySafetyInfoService.getList(paramCommunitySafetyInfo);
+		String appKey = communitySafetyInfoList.get(0).getAppKey();
+		String secret = communitySafetyInfoList.get(0).getAppSecret();
+    	if(YSUtils.addDevice(appKey, secret, deviceSerial, validateCode)){
+    		
+	        json.put("msg", "添加成功");
+			json.put("status", "0");
+//			List<String> devList = new ArrayList<String>();
+//	    	devList.add("dev:"+deviceSerial);
+//	    	YSUtils.addPromiss(appKey, secret, room.getAccountId(), YSUtils.getStatement(devList, "GET,UPDATE,DEVCTRL"));
+	    	UMRoomYsIdLink roomYsIdLink = new UMRoomYsIdLink();
+	    	roomYsIdLink.setId(StringUtils.getUUID());
+	    	roomYsIdLink.setDeviceCode(deviceSerial);
+	    	roomYsIdLink.setRoomId(roomId);
+	    	roomYsIdLink.setStatus("1");
+	    	roomYsIdLink.setIsOnline("1");
+	    	roomYsIdLink.setValidateCode(validateCode);
+	    	roomYsService.add(roomYsIdLink);
+	    	//查询萤石设备列表获取版本号
+	    	StringBuffer sb = new StringBuffer();
+	    	String adminAccessToken = YSUtils.getAdminAccessToken(appKey, secret);
+        	HttpSendShort.sendStrOfPost("https://open.ys7.com/api/lapp/device/list", "accessToken="+adminAccessToken+"&pageStart="+0+"&pageSize="+50, "", sb);
+        	JSONObject resultJson = (JSONObject)JSON.parse(sb.toString());
+        	JSONObject deviceJson = new JSONObject();
+        	for(int i = 0 ; i < resultJson.getArray("data").length() ; i ++){
+        		if(deviceSerial.equals(resultJson.getArray("data").getObject(i).getString("deviceSerial"))){
+        			deviceJson.put("deviceVersion", resultJson.getArray("data").getObject(i).getString("deviceVersion"));
+        		}
+        	}
+        	RSDeviceModel deviceModelEntity = new RSDeviceModel();
+        	deviceModelEntity.setId(deviceModelId);
+        	logger.info(deviceModelId);
+        	logger.info("添加设备------------------------,deviceModelId:"+deviceModelId);
+        	deviceModelEntity = deviceModelService.get(deviceModelEntity);
+        	RSDevice device = new RSDevice();
+    		deviceJson.put("deviceSerial", deviceSerial);
+    		deviceJson.put("validateCode", validateCode);
+    		device.setBrandId(brandId);
+    		device.setDeviceModelId(deviceModelId);
+    		device.setDeviceModelName(deviceModelEntity.getName());
+    		device.setId(StringUtils.getUUID());
+    		device.setImgUrl(deviceModelEntity.getImgUrl());
+    		device.setRoomId(roomId);
+    		device.setName(deviceSerial);
+    		device.setCategoryCode(deviceType);
+    		device.setJson(JSON.json(deviceJson));
+    		deviceService.add(device);
+        	
+    	}else{
+	        json.put("msg", "添加失败");
+			json.put("status", "1");
+    	}
+    	return JSON.json(json);
+    }
+    
+    @ApiOperation(value="删除设备", notes="删除设备")
+    @ResponseBody
+    @RequestMapping(value={"deleteDevice"}, method= RequestMethod.POST)
+    public String deleteDevice(@ApiParam(required=true, name="deviceSerial", value="设备序列号")@RequestParam(name = "deviceSerial")String deviceSerial,
+    							@ApiParam(required=true, name="brandId", value="品牌ID")@RequestParam(name = "brandId")String brandId,
+    							@ApiParam(required=true, name="roomId", value="住房ID")@RequestParam(name = "roomId")String roomId,
+    							@ApiParam(required=true, name="deviceId", value="设备ID")@RequestParam(name = "deviceId")String deviceId) throws Exception {
+    	UMRoom room = new UMRoom();
+    	room = roomService.getRoom(roomId);
+    	Map<String,Object> paramCommunitySafetyInfo = new HashMap<String,Object>();
+    	paramCommunitySafetyInfo.put("comId", room.getComId());
+    	paramCommunitySafetyInfo.put("brandId", "1");
+		List<RSCommunitySafetyInfo> communitySafetyInfoList = communitySafetyInfoService.getList(paramCommunitySafetyInfo);
+		String appKey = communitySafetyInfoList.get(0).getAppKey();
+		String secret = communitySafetyInfoList.get(0).getAppSecret();
+    	JSONObject json = new JSONObject();
+    	if(YSUtils.deleteDevice(appKey, secret, deviceSerial)){
+	        json.put("msg", "删除成功");
+			json.put("status", "0");
+			RSDevice camera = new RSDevice();
+			camera.setId(deviceId);
+			camera.setStatus("9");
+			deviceService.delete(camera);
+			UMRoomYsIdLink roomYsIdLink = new UMRoomYsIdLink();
+			roomYsIdLink.setDeviceCode(deviceSerial);
+			roomYsIdLink.setRoomId(roomId);
+			roomYsIdLink.setStatus("9");
+	    	roomYsService.update(roomYsIdLink);
+    	}else{
+	        json.put("msg", "删除失败");
+			json.put("status", "1");
+    	}
+    	return JSON.json(json);
+    }
+    
+    @ApiOperation(value="设备上下线", notes="设备上下线")
+    @ResponseBody
+    @RequestMapping(value={"onlineDevice"}, method= RequestMethod.POST)
+    public String onlineDevice(@ApiParam(required=true, name="deviceSerial", value="设备序列号")@RequestParam(name = "deviceSerial")String deviceSerial,
+    							@ApiParam(required=true, name="roomId", value="住房ID")@RequestParam(name = "roomId")String roomId,
+    							@ApiParam(required=true, name="isOnline", value="上下线通知（0：关闭 1：开启）" )@RequestParam(name = "isOnline")String isOnline) throws Exception {
+    	UMRoom room = new UMRoom();
+    	room = roomService.getRoom(roomId);
+    	Map<String,Object> paramCommunitySafetyInfo = new HashMap<String,Object>();
+    	paramCommunitySafetyInfo.put("comId", room.getComId());
+    	paramCommunitySafetyInfo.put("brandId", "1");
+		List<RSCommunitySafetyInfo> communitySafetyInfoList = communitySafetyInfoService.getList(paramCommunitySafetyInfo);
+		String appKey = communitySafetyInfoList.get(0).getAppKey();
+		String secret = communitySafetyInfoList.get(0).getAppSecret();
+    	JSONObject json = new JSONObject();
+    	try{
+	    	StringBuffer sb = new StringBuffer();
+	    	String adminAccessToken = YSUtils.getAdminAccessToken(appKey, secret);
+	    	HttpSendShort.sendStrOfPost("https://open.ys7.com/api/lapp/device/list", "accessToken="+adminAccessToken+"&deviceSerial="+deviceSerial+"&enable="+isOnline, "", sb);
+	    	JSONObject resultJson = (JSONObject)JSON.parse(sb.toString());
+	    	if(resultJson.getString("code").equals("200")){
+				UMRoomYsIdLink proYsIdLink = new UMRoomYsIdLink();
+		    	proYsIdLink.setDeviceCode(deviceSerial);
+		    	proYsIdLink.setRoomId(roomId);
+		    	proYsIdLink.setIsOnline(isOnline);
+		    	proYsIdLink.setStatus(null);
+		    	if(roomYsService.update(proYsIdLink)){
+			        json.put("msg", "操作成功");
+					json.put("status", "0");
+		    	}else{
+			        json.put("msg", "操作失败");
+					json.put("status", "1");
+		    	}
+	    	}else{
+	    		json.put("msg", "操作失败");
+				json.put("status", "1");
+	    	}
+    	}catch(Exception e){
+    		logger.info("设备上下线出错！",e);
+    	}
+    	return JSON.json(json);
+    }
+    
+    @ApiOperation(value="设备上下线状态", notes="设备上下线状态")
+    @ResponseBody
+    @RequestMapping(value={"getDevice"}, method= RequestMethod.POST)
+    public String getDevice(@ApiParam(required=true, name="deviceSerial", value="设备序列号")@RequestParam(name = "deviceSerial")String deviceSerial,
+    							@ApiParam(required=false, name="roomId", value="住房ID")@RequestParam(required = false,name = "roomId")String roomId) throws Exception {
+    	JSONObject json = new JSONObject();
+    	UMRoomYsIdLink proYsIdLink = new UMRoomYsIdLink();
+    	proYsIdLink.setRoomId(roomId);
+    	proYsIdLink.setDeviceCode(deviceSerial);
+    	json.put("data", (JSONObject)JSON.parse(Serializer.serializeJson(roomYsService.getRoomYsIdLinksByRoomIdAndDev(proYsIdLink))));
+        json.put("msg", "");
+		json.put("status", "0");
+    	return JSON.json(json);
+    }
+    
+    @ApiOperation(value="删除探测器", notes="删除探测器")
+    @ResponseBody
+    @RequestMapping(value={"deleteDetector"}, method= RequestMethod.POST)
+    public String deleteDetector(@ApiParam(required=true, name="deviceSerial", value="设备序列号")@RequestParam(name = "deviceSerial")String deviceSerial,
+    							@ApiParam(required=true, name="detectorSerial", value="探测器序列号")@RequestParam(name = "detectorSerial")String detectorSerial,
+    							@ApiParam(required=true, name="roomId", value="住房ID")@RequestParam(name = "roomId")String roomId) throws Exception {
+    	UMRoom room = new UMRoom();
+    	room = roomService.getRoom(roomId);
+    	Map<String,Object> paramCommunitySafetyInfo = new HashMap<String,Object>();
+    	paramCommunitySafetyInfo.put("comId", room.getComId());
+    	paramCommunitySafetyInfo.put("brandId", "1");
+		List<RSCommunitySafetyInfo> communitySafetyInfoList = communitySafetyInfoService.getList(paramCommunitySafetyInfo);
+		String appKey = communitySafetyInfoList.get(0).getAppKey();
+		String secret = communitySafetyInfoList.get(0).getAppSecret();
+    	JSONObject json = new JSONObject();
+    	if(YSUtils.deleteDetector(appKey, secret, deviceSerial,detectorSerial)){
+	        json.put("msg", "删除成功");
+			json.put("status", "0");
+    	}else{
+	        json.put("msg", "删除失败");
+			json.put("status", "1");
+    	}
+    	return JSON.json(json);
+    }
+    
+    @ApiOperation(value="修改探测器名称", notes="修改探测器名称")
+    @ResponseBody
+    @RequestMapping(value={"updateDetector"}, method= RequestMethod.POST)
+    public String updateDetector(@ApiParam(required=true, name="detectorSerial", value="探测器序列号")@RequestParam(name = "detectorSerial")String detectorSerial,
+    							@ApiParam(required=true, name="deviceSerial", value="设备序列号")@RequestParam(name = "deviceSerial")String deviceSerial,
+    							@ApiParam(required=true, name="name", value="设备名称")@RequestParam(name = "name")String name,
+    							@ApiParam(required=true, name="roomId", value="住房ID")@RequestParam(name = "roomId")String roomId) throws Exception {
+    	JSONObject json = new JSONObject();
+    	UMRoom room = new UMRoom();
+    	room = roomService.getRoom(roomId);
+    	Map<String,Object> paramCommunitySafetyInfo = new HashMap<String,Object>();
+    	paramCommunitySafetyInfo.put("comId", room.getComId());
+    	paramCommunitySafetyInfo.put("brandId", "1");
+		List<RSCommunitySafetyInfo> communitySafetyInfoList = communitySafetyInfoService.getList(paramCommunitySafetyInfo);
+		String appKey = communitySafetyInfoList.get(0).getAppKey();
+		String secret = communitySafetyInfoList.get(0).getAppSecret();
+    	String adminAccessToken = YSUtils.getAdminAccessToken(appKey, secret);
+		StringBuffer sb = new StringBuffer();
+    	HttpSendShort.sendStrOfPost("https://open.ys7.com/api/lapp/detector/name/change", "accessToken="+adminAccessToken+"&deviceSerial="+deviceSerial+"&detectorSerial="+detectorSerial+"&newName="+name, "", sb);
+    	JSONObject resultJson = (JSONObject)JSON.parse(sb.toString());
+    	if("200".equals(resultJson.get("code"))){
+	        json.put("msg", "修改成功");
+			json.put("status", "0");
+    	}else{
+	        json.put("msg", "修改失败");
+			json.put("status", "1");
+    	}
+    	return JSON.json(json);
+    }
+    
+    @ApiOperation(value="修改设备名称", notes="修改设备名称")
+    @ResponseBody
+    @RequestMapping(value={"updateDevice"}, method= RequestMethod.POST)
+    public String updateDevice(@ApiParam(required=true, name="deviceId", value="设备ID")@RequestParam(name = "deviceId")String deviceId,
+    							@ApiParam(required=true, name="name", value="探测器名称")@RequestParam(name = "name")String name) throws Exception {
+    	JSONObject json = new JSONObject();
+    	RSDevice device = new RSDevice();
+    	device.setId(deviceId);
+    	device.setName(name);
+    	if(deviceService.update(device)){
+	        json.put("msg", "修改成功");
+			json.put("status", "0");
+    	}else{
+	        json.put("msg", "修改失败");
+			json.put("status", "1");
+    	}
+    	return JSON.json(json);
+    }
+    
+    @ApiOperation(value="设备布撤防", notes="设备布撤防")
+    @ResponseBody
+    @RequestMapping(value={"defenceSet"}, method= RequestMethod.POST)
+    public String defenceSet(@ApiParam(required=true, name="roomId", value="住房ID")@RequestParam(name = "roomId")String roomId,
+    							@ApiParam(required=true, name="isDefence", value="布撤防状态;0-睡眠，1-在家，2外出")@RequestParam(name = "isDefence")Integer isDefence) throws Exception {
+    	
+    	JSONObject json = new JSONObject();
+    	UMRoom room = new UMRoom();
+    	room = roomService.getRoom(roomId);
+    	if("698d529bec214788b27761139f99e7ad".equals(room.getId())||"76b96ad8f3454ba59f37b56dfa4698ec".equals(room.getId())||"21c2a94cc0054689b9c86bc9eac9c1c2".equals(room.getId())){
+    		
+    		if("21c2a94cc0054689b9c86bc9eac9c1c2".equals(roomId)){
+    			if(0==isDefence){
+    				isDefence = 3;
+    			}else if(1==isDefence){
+    				isDefence = 4;
+    			}else if(2==isDefence){
+    				isDefence = 5;
+    			}
+    		}
+    		
+    		String url = "http://"+AppContext.getInstance().getProperty("hjlurl");
+    		StringBuffer sb = new StringBuffer();
+    		HttpSendShort.sendStrOfPost(url+"/app/controlScene", "id="+isDefence+"&roomId="+roomId, "", sb);
+    		logger.info(sb.toString());
+    		if(3==isDefence){
+				isDefence = 0;
+			}else if(4==isDefence){
+				isDefence = 1;
+			}else if(5==isDefence){
+				isDefence = 2;
+			}
+    		RedisUtils.instance().set(roomId.getBytes(), isDefence);
+    		return sb.toString();
+    	}else{
+    		String sceneName = "";
+    		if(isDefence == 0){
+    			sceneName = "睡眠";
+        	}else if(isDefence == 1){
+        		sceneName = "在家";
+        	}else if(isDefence == 2){
+        		sceneName = "外出";
+        	}
+    		Map<String,Object> param = new HashMap<String,Object>();
+    		param.put("roomId", roomId);
+    		param.put("typeId", room.getTypeId());
+    		List<RSScene> list = sceneService.getList(param);
+    		for(RSScene scene : list){
+    			if(sceneName.equals(scene.getName())){
+    				String url = "http://"+AppContext.getInstance().getProperty("hjlurl");
+    	    		StringBuffer sb = new StringBuffer();
+    	    		HttpSendShort.sendStrOfPost(url+"/app/controlScene", "id="+scene.getId()+"&roomId="+roomId, "", sb);
+    	    		logger.info(sb.toString());
+    	    		return sb.toString();
+    			}
+    		}
+    	}
+    	try{
+    		List<String> centerCode = new ArrayList<String>();
+        	
+        	if(isDefence == 0){
+        		//睡眠AA55FF00034010000D0A
+    			//AA55FF00034012000D0A
+    			centerCode.add("AA55FF00034011000D0A");
+    			centerCode.add("AA55FF00034013000D0A");
+        	}else if(isDefence == 1){
+        		//在家AA55FF00034011000D0A
+        		//AA55FF00034013000D0A
+        		if("21c2a94cc0054689b9c86bc9eac9c1c9".equals(roomId)){
+    	    		centerCode.add("AA55FF00034010000D0A");
+        		}
+        		else if("21c2a94cc0054689b9c86bc9eac9c1c0".equals(roomId)){
+        			//	    		客厅灯光
+        			centerCode.add("AA55FF00034010000D0A");
+    	    		//窗帘
+    	    		centerCode.add("AA55FF00034012000D0A");
+        		}
+        		else{
+        			//	    		客厅灯光
+    	    		centerCode.add("AA55FF20031219000D0A");
+//    	    		餐厅灯光
+    	    		centerCode.add("AA55FF2103122D000D0A");
+//    	    		玄关灯光
+    	    		centerCode.add("AA55FF2203123C000D0A");
+//    	    		客厅窗帘
+    	    		centerCode.add("AA55FF20031321000D0A");
+//    	    		centerCode.add("AA55FF00034010000D0A");
+//    				centerCode.add("AA55FF00034012000D0A");
+        		}
+        	}else if(isDefence == 2){
+        		//外出
+        		centerCode.add("AA55FF00034011000D0A");
+    			centerCode.add("AA55FF00034013000D0A");
+        		
+        	}
+    		if(StringUtils.isNotBlank(room.getDeviceMac())){
+    			for(String str : centerCode){
+    				logger.info(str);
+        			byte[] bytes = str16toByte(str.toUpperCase());
+        			try {
+        				Thread.sleep(50);
+    					logger.info("布撤防控制智能设备返回："+appService.sentToCenter(room.getDeviceMac(), bytes));
+    				} catch (Exception e) {
+    					logger.info("",e);
+    				}
+    			}
+    		}
+    	}catch(Exception e){
+    		logger.info("布撤防发送指令到中控出错",e);
+    	}
+    	
+    	Map<String,Object> paramCommunitySafetyInfo = new HashMap<String,Object>();
+    	paramCommunitySafetyInfo.put("comId", room.getComId());
+    	paramCommunitySafetyInfo.put("brandId", "1");
+		List<RSCommunitySafetyInfo> communitySafetyInfoList = communitySafetyInfoService.getList(paramCommunitySafetyInfo);
+		String appKey = communitySafetyInfoList.get(0).getAppKey();
+		String secret = communitySafetyInfoList.get(0).getAppSecret();
+    	RSDevice device = new RSDevice();
+    	device.setRoomId(roomId);
+//    	获取所有设备
+    	List<RSDevice> deviceList = deviceService.getList(device);
+    	
+    	List<RSDevice> ysDeviceList = new ArrayList<RSDevice>();
+		List<RSDevice> haoEnDeviceList = new ArrayList<RSDevice>();
+		List<RSDevice> leChengDeviceList = new ArrayList<RSDevice>();
+		
+		for(RSDevice deviceEntity : deviceList){
+			if(deviceEntity.getBrandId().equals("1")){
+				ysDeviceList.add(deviceEntity);
+			}else if(deviceEntity.getBrandId().equals("2")){
+				haoEnDeviceList.add(deviceEntity);
+			}else if(deviceEntity.getBrandId().equals("3")){
+				leChengDeviceList.add(deviceEntity);
+			}
+		}
+    	
+		//萤石布撤防
+    	String adminAccessToken = YSUtils.getAdminAccessToken(appKey, secret);
+    	boolean isDefenceOk = true;
+    	int defenceCode = 0 ;
+    	if(isDefence == 0){
+    		//睡眠
+    	}else if(isDefence == 1){
+    		//在家
+    		defenceCode = 8;
+    	}else if(isDefence == 2){
+    		//外出
+    		defenceCode = 16;
+    	}
+    	for(RSDevice deviceEntity : ysDeviceList){
+    		try{
+	    		if(deviceEntity.getCategoryCode().equals("2")){
+		    		StringBuffer sb = new StringBuffer();
+		    		JSONObject jsonObj = (JSONObject)JSON.parse(deviceEntity.getJson());
+		    		HttpSendShort.sendStrOfPost("https://open.ys7.com/api/lapp/device/defence/set", "accessToken="+adminAccessToken+"&deviceSerial="+jsonObj.getString("deviceSerial")+"&isDefence="+defenceCode, "", sb);
+		    		JSONObject resultJson = (JSONObject)JSON.parse(sb.toString());
+	    			if(!"200".equals(resultJson.get("code"))){
+	    				sb.setLength(0);
+	        			if(defenceCode == 8){
+	        				defenceCode = 0;
+	        				HttpSendShort.sendStrOfPost("https://open.ys7.com/api/lapp/device/defence/set", "accessToken="+adminAccessToken+"&deviceSerial="+jsonObj.getString("deviceSerial")+"&isDefence="+isDefence, "", sb);
+	                		JSONObject resultJsonOther = (JSONObject)JSON.parse(sb.toString());
+	                		if(!"200".equals(resultJsonOther.get("code"))){
+	                			logger.info("----------萤石布撤防----------"+sb);
+	                			isDefenceOk = false;
+	                		}
+	            		}else if(defenceCode == 16){
+	            			defenceCode = 1;
+	            			HttpSendShort.sendStrOfPost("https://open.ys7.com/api/lapp/device/defence/set", "accessToken="+adminAccessToken+"&deviceSerial="+jsonObj.getString("deviceSerial")+"&isDefence="+isDefence, "", sb);
+	                		JSONObject resultJsonOther = (JSONObject)JSON.parse(sb.toString());
+	                		if(!"200".equals(resultJsonOther.get("code"))){
+	                			isDefenceOk = false;
+	                			logger.info("----------萤石布撤防----------"+sb);
+	                		}
+	            		}
+	            		
+	        		}
+	    		}else{
+	    			JSONObject jsonObj = (JSONObject)JSON.parse(deviceEntity.getJson());
+	    			Thread thread = new DefenceThread(jsonObj.getString("deviceSerial"),roomId,adminAccessToken,isDefence);
+	    			thread.start();
+	    		}
+    		}catch(Exception e){
+    			logger.info("萤石",e);
+    		}
+    	}
+    	
+    	//豪恩布撤防
+    	int haoEnDefenceCode = 3 ;
+    	if(isDefence == 0){
+    		//睡眠
+    	}else if(isDefence == 1){
+    		//在家
+    		haoEnDefenceCode = 3;
+    	}else if(isDefence == 2){
+    		//外出
+    		haoEnDefenceCode = 1;
+    	}
+    	
+    	Map<String,Object> param = new HashMap<String,Object>();
+    	param.put("defendState", haoEnDefenceCode);
+//    	param.put("sirenDuration", 30);
+    	//开启延时布放
+//    	if(haoEnDefenceCode==1){
+//    		param.put("delayEnable", true);
+//    		param.put("dependDelay", 30);
+//    	}else{
+    		param.put("delayEnable", false);
+//    	}
+//    	param.put("deviceId", deviceId);
+    	
+    	for(RSDevice deviceEntity : haoEnDeviceList){
+    		try{
+	    		if(deviceEntity.getCategoryCode().equals("2")){
+	    			StringBuffer sb = new StringBuffer();
+	    			
+	    			String token = HaoEnUtils.getTokenStr(room.getComId(),communitySafetyInfoService);
+	    	    	Map<String,String> headerMap = new HashMap<String,String>();
+	    	    	headerMap.put("Authorization","Bearer " + token);
+	    	    	sb.append(HaoEnUtils.getHaoEnApi(param, null, "/devices/"+deviceEntity.getId().split("@@@")[1], "PUT", headerMap,room.getComId(),communitySafetyInfoService));
+	    			logger.info("豪恩安防布撤防");
+	    			JSONObject resultJson = (JSONObject)JSON.parse(sb.toString());
+		    		if(1!=(resultJson.getInt("result",0))&&2007!=(resultJson.getInt("code",0))){
+		    			isDefenceOk = false;
+		    			logger.info("----------豪恩布撤防----------"+sb);
+		    		}
+	    		}else{
+	//    			JSONObject jsonObj = (JSONObject)JSON.parse(deviceEntity.getJson());
+	//    			Thread thread = new DefenceThread(jsonObj.getString("deviceSerial"),roomId,adminAccessToken,appService,room.getDeviceMac(),isDefence);
+	//    			thread.start();
+	    		}
+    		}catch(Exception e){
+    			logger.info("豪恩",e);
+    		}
+    	}
+    	
+    	for(RSDevice deviceEntity : leChengDeviceList){
+    		try{
+	    		if(deviceEntity.getCategoryCode().equals("2")){
+	    		}else{
+	    			RSLCParam lcParam = JSON.parse(deviceEntity.getJson(),RSLCParam.class);
+	    			Map<String,Object> params = new HashMap<String,Object>();
+	    	    	params.put("token", LeChengUtils.getTokenStr(room.getComId(),communitySafetyInfoService));
+	    	    	params.put("deviceId", lcParam.getDeviceId());
+	    	    	//"http://www.hjlapp.com:9202/api/lecheng/receiveMsg"
+	    	    	params.put("channelId", "0");
+	    	    	
+	    	    	if(isDefence == 0){
+	    	    		//睡眠
+	    	    		params.put("enable", false );
+	    	    	}else if(isDefence == 1){
+	    	    		//在家
+	    	    		params.put("enable", false );
+	    	    	}else if(isDefence == 2){
+	    	    		//外出
+	    	    		params.put("enable", true );
+	    	    	}
+	    	    	
+	    			LeChengUtils.getLeChengApi(params, "modifyDeviceAlarmStatus", "POST", null,room.getComId(),communitySafetyInfoService);
+	    		}
+    		}catch(Exception e){
+    			logger.info("乐橙",e);
+    		}
+    	}
+    	
+    	if(isDefenceOk){
+    		logger.info("缓存布撤防状态："+roomId+"------------"+isDefence);
+    		RedisUtils.instance().set(roomId.getBytes(), isDefence);
+    		String data = "syncInfo" + isDefence + "syncInfo";
+    		logger.info("同步布撤防状态到大屏结果："+appService.sentToPad(room.getPadMac(), data) + "-----" + data);
+	        json.put("msg", "设置成功");
+			json.put("status", "0");
+    	}else{
+	        json.put("msg", "设置失败");
+			json.put("status", "1");
+    	}
+    	return JSON.json(json);
+    }
+    
+    @ApiOperation(value="设备布撤防", notes="设备布撤防")
+    @ResponseBody
+    @RequestMapping(value={"defenceSetNew"}, method= RequestMethod.POST)
+    public String defenceSetNew(@ApiParam(required=true, name="roomId", value="住房ID")@RequestParam(name = "roomId")String roomId,
+    							@ApiParam(required=true, name="isDefence", value="布撤防状态;0-睡眠，1-在家，2外出")@RequestParam(name = "isDefence")Integer isDefence) throws Exception {
+    	
+    	JSONObject json = new JSONObject();
+    	UMRoom room = new UMRoom();
+    	room = roomService.getRoom(roomId);
+    	RSDevice device = new RSDevice();
+    	device.setRoomId(roomId);
+    	
+    	
+//    	获取所有设备
+    	List<RSDevice> deviceList = deviceService.getList(device);
+    	List<RSDevice> ysDeviceList = new ArrayList<RSDevice>();
+		List<RSDevice> haoEnDeviceList = new ArrayList<RSDevice>();
+		List<RSDevice> leChengDeviceList = new ArrayList<RSDevice>();
+		
+		for(RSDevice deviceEntity : deviceList){
+			if(deviceEntity.getBrandId().equals("1")){
+				ysDeviceList.add(deviceEntity);
+			}else if(deviceEntity.getBrandId().equals("2")){
+				haoEnDeviceList.add(deviceEntity);
+			}else if(deviceEntity.getBrandId().equals("3")){
+				leChengDeviceList.add(deviceEntity);
+			}
+		}
+		boolean isDefenceOk = true;
+		try{
+			//萤石布撤防
+			Map<String,Object> paramCommunitySafetyInfo = new HashMap<String,Object>();
+	    	paramCommunitySafetyInfo.put("comId", room.getComId());
+	    	paramCommunitySafetyInfo.put("brandId", "1");
+			List<RSCommunitySafetyInfo> communitySafetyInfoList = communitySafetyInfoService.getList(paramCommunitySafetyInfo);
+			String appKey = communitySafetyInfoList.get(0).getAppKey();
+			String secret = communitySafetyInfoList.get(0).getAppSecret();
+	    	String adminAccessToken = YSUtils.getAdminAccessToken(appKey, secret);
+	    	int defenceCode = 0 ;
+	    	if(isDefence == 0){
+	    		//睡眠
+	    	}else if(isDefence == 1){
+	    		//在家
+	    		defenceCode = 8;
+	    	}else if(isDefence == 2){
+	    		//外出
+	    		defenceCode = 16;
+	    	}
+	    	for(RSDevice deviceEntity : ysDeviceList){
+	    		try{
+		    		if(deviceEntity.getCategoryCode().equals("2")){
+			    		StringBuffer sb = new StringBuffer();
+			    		JSONObject jsonObj = (JSONObject)JSON.parse(deviceEntity.getJson());
+			    		HttpSendShort.sendStrOfPost("https://open.ys7.com/api/lapp/device/defence/set", "accessToken="+adminAccessToken+"&deviceSerial="+jsonObj.getString("deviceSerial")+"&isDefence="+defenceCode, "", sb);
+			    		JSONObject resultJson = (JSONObject)JSON.parse(sb.toString());
+		    			if(!"200".equals(resultJson.get("code"))){
+		    				sb.setLength(0);
+		        			if(defenceCode == 8){
+		        				defenceCode = 0;
+		        				HttpSendShort.sendStrOfPost("https://open.ys7.com/api/lapp/device/defence/set", "accessToken="+adminAccessToken+"&deviceSerial="+jsonObj.getString("deviceSerial")+"&isDefence="+isDefence, "", sb);
+		                		JSONObject resultJsonOther = (JSONObject)JSON.parse(sb.toString());
+		                		if(!"200".equals(resultJsonOther.get("code"))){
+		                			logger.info("----------萤石布撤防----------"+sb);
+		                			isDefenceOk = false;
+		                		}
+		            		}else if(defenceCode == 16){
+		            			defenceCode = 1;
+		            			HttpSendShort.sendStrOfPost("https://open.ys7.com/api/lapp/device/defence/set", "accessToken="+adminAccessToken+"&deviceSerial="+jsonObj.getString("deviceSerial")+"&isDefence="+isDefence, "", sb);
+		                		JSONObject resultJsonOther = (JSONObject)JSON.parse(sb.toString());
+		                		if(!"200".equals(resultJsonOther.get("code"))){
+		                			isDefenceOk = false;
+		                			logger.info("----------萤石布撤防----------"+sb);
+		                		}
+		            		}
+		            		
+		        		}
+		    		}else{
+		    			JSONObject jsonObj = (JSONObject)JSON.parse(deviceEntity.getJson());
+		    			Thread thread = new DefenceThread(jsonObj.getString("deviceSerial"),roomId,adminAccessToken,isDefence);
+		    			thread.start();
+		    		}
+	    		}catch(Exception e){
+	    			logger.info("萤石",e);
+	    		}
+	    	}
+		}catch(Exception e){
+			
+		}
+    	//豪恩布撤防
+    	int haoEnDefenceCode = 3 ;
+    	if(isDefence == 0){
+    		//睡眠
+    	}else if(isDefence == 1){
+    		//在家
+    		haoEnDefenceCode = 3;
+    	}else if(isDefence == 2){
+    		//外出
+    		haoEnDefenceCode = 1;
+    	}
+    	Map<String,Object> param = new HashMap<String,Object>();
+    	param.put("defendState", haoEnDefenceCode);
+		param.put("delayEnable", false);
+    	for(RSDevice deviceEntity : haoEnDeviceList){
+    		try{
+	    		if(deviceEntity.getCategoryCode().equals("2")){
+	    			StringBuffer sb = new StringBuffer();
+	    			
+	    			String token = HaoEnUtils.getTokenStr(room.getComId(),communitySafetyInfoService);
+	    	    	Map<String,String> headerMap = new HashMap<String,String>();
+	    	    	headerMap.put("Authorization","Bearer " + token);
+	    	    	sb.append(HaoEnUtils.getHaoEnApi(param, null, "/devices/"+deviceEntity.getId().split("@@@")[1], "PUT", headerMap,room.getComId(),communitySafetyInfoService));
+	    			logger.info("豪恩安防布撤防");
+	    			JSONObject resultJson = (JSONObject)JSON.parse(sb.toString());
+		    		if(1!=(resultJson.getInt("result",0))&&2007!=(resultJson.getInt("code",0))){
+		    			isDefenceOk = false;
+		    			logger.info("----------豪恩布撤防----------"+sb);
+		    		}
+	    		}
+    		}catch(Exception e){
+    			logger.info("豪恩",e);
+    		}
+    	}
+    	
+    	for(RSDevice deviceEntity : leChengDeviceList){
+    		try{
+	    		if(deviceEntity.getCategoryCode().equals("2")){
+	    		}else{
+	    			RSLCParam lcParam = JSON.parse(deviceEntity.getJson(),RSLCParam.class);
+	    			Map<String,Object> params = new HashMap<String,Object>();
+	    	    	params.put("token", LeChengUtils.getTokenStr(room.getComId(),communitySafetyInfoService));
+	    	    	params.put("deviceId", lcParam.getDeviceId());
+	    	    	//"http://www.hjlapp.com:9202/api/lecheng/receiveMsg"
+	    	    	params.put("channelId", "0");
+	    	    	
+	    	    	if(isDefence == 0){
+	    	    		//睡眠
+	    	    		params.put("enable", false );
+	    	    	}else if(isDefence == 1){
+	    	    		//在家
+	    	    		params.put("enable", false );
+	    	    	}else if(isDefence == 2){
+	    	    		//外出
+	    	    		params.put("enable", true );
+	    	    	}
+	    			LeChengUtils.getLeChengApi(params, "modifyDeviceAlarmStatus", "POST", null,room.getComId(),communitySafetyInfoService);
+	    		}
+    		}catch(Exception e){
+    			logger.info("乐橙",e);
+    		}
+    	}
+//    	if(isDefenceOk){
+    	logger.info("缓存布撤防状态："+roomId+"------------"+isDefence);
+    		RedisUtils.instance().set(roomId.getBytes(), isDefence);
+    		String data = "syncInfo" + isDefence + "syncInfo";
+    		logger.info("同步布撤防状态到大屏结果："+appService.sentToPad(room.getPadMac(), data) + "-----" + data);
+    		
+    		if ("1".equals(room.getDelayAlarm())) {
+        		if (isDefence != 2) {
+    				DelayAlarmUtils.setFlag(room, 0, -1);
+    			}
+    		}
+        	// 发送布/撤防消息给Creaston
+        	if (room.getDeviceMac() != null) {
+        		DelayAlarmUtils.sendDefenceTypeToCentral(isDefence, appService, room.getDeviceMac());
+    		}
+        	
+	        json.put("msg", "设置成功");
+			json.put("status", "0");
+//    	}else{
+//	        json.put("msg", "设置失败");
+//			json.put("status", "1");
+//    	}
+    	return JSON.json(json);
+    }
+    
+    
+    @ApiOperation(value="设备延迟布防报警（误报警）", notes="当处于误报警状态下，选择忽略则延迟时间内不报警")
+    @ResponseBody
+    @RequestMapping(value={"defenceDelayIgnore"}, method= RequestMethod.POST)
+    public String delayIgnore(@ApiParam(required=true, name="roomId", value="住房ID")@RequestParam(name = "roomId")String roomId,
+    							@ApiParam(required=true, name="ignore", value="1 忽略")@RequestParam(name = "ignore")Integer ignore) throws Exception {
+    	
+    	JSONObject json = new JSONObject();
+    	json.put("msg", "失败");
+		json.put("status", "1");
+    	try {
+    		UMRoom room = new UMRoom();
+        	room = roomService.getRoom(roomId);
+        	if (ignore == 1) {
+        		DelayAlarmUtils.setFlag(room, 2, -1);
+        		json.put("msg", "设置成功");
+        		json.put("status", "0");
+			}
+		} catch (Exception e) {
+			// TODO: handle exception
+			json.put("msg", "失败");
+			json.put("status", "1");
+			return JSON.json(json);
+		}
+		return JSON.json(json);
+    }
+    
+    @ApiOperation(value="镜头遮蔽开关", notes="镜头遮蔽开关")
+    @ResponseBody
+    @RequestMapping(value={"deviceHideOrShow"}, method= RequestMethod.POST)
+    public String deviceHideOrShow(@ApiParam(required=true, name="roomId", value="住房ID")@RequestParam(name = "roomId")String roomId,
+    							@ApiParam(required=false, name="deviceSerial", value="设备序列号")@RequestParam(required=false,name = "deviceSerial")String deviceSerial,
+    							@ApiParam(required=true, name="enable", value="状态：0-关闭，1-开启")@RequestParam(name = "enable")Integer enable,
+    							@ApiParam(required=false, name="channelNo", value="通道号，不传表示设备本身")@RequestParam(required=false,name = "channelNo")Integer channelNo) throws Exception {
+    	JSONObject json = new JSONObject();
+    	UMRoom room = new UMRoom();
+    	room = roomService.getRoom(roomId);
+    	Map<String,Object> paramCommunitySafetyInfo = new HashMap<String,Object>();
+    	paramCommunitySafetyInfo.put("comId", room.getComId());
+    	paramCommunitySafetyInfo.put("brandId", "1");
+		List<RSCommunitySafetyInfo> communitySafetyInfoList = communitySafetyInfoService.getList(paramCommunitySafetyInfo);
+		String appKey = communitySafetyInfoList.get(0).getAppKey();
+		String secret = communitySafetyInfoList.get(0).getAppSecret();
+    	String adminAccessToken = YSUtils.getAdminAccessToken(appKey, secret);
+    	StringBuffer sb = new StringBuffer();
+    	try{
+	    	if(StringUtils.isBlank(deviceSerial)){
+	    		sb.setLength(0);
+	    		RSDevice device = new RSDevice();
+				device.setRoomId(roomId);
+				List<RSDevice> deviceList = deviceService.getList(device);
+				for(RSDevice deviceEntity : deviceList){
+					RSYSParam param = JSON.parse(deviceEntity.getJson(),RSYSParam.class);
+					HttpSendShort.sendStrOfPost("https://open.ys7.com/api/lapp/device/scene/switch/set", "accessToken="+adminAccessToken+"&deviceSerial="+param.getDeviceSerial()+"&enable="+enable+"&channelNo="+(channelNo==null?"":channelNo), "", sb);
+					logger.info(sb.toString());
+				}
+	    	}else{
+	    		try{
+		    		sb.setLength(0);
+		    		HttpSendShort.sendStrOfPost("https://open.ys7.com/api/lapp/device/scene/switch/set", "accessToken="+adminAccessToken+"&deviceSerial="+deviceSerial+"&enable="+enable+"&channelNo="+(channelNo==null?"":channelNo), "", sb);
+		    		logger.info(sb.toString());
+	    		}catch(Exception e){
+	    			
+	    		}
+	    	}
+    	}catch(Exception e){
+			
+		}
+        json.put("msg", "设置成功");
+		json.put("status", "0");
+    	return JSON.json(json);
+    }
+    
+    @ApiOperation(value="设备一键消警", notes="设备一键消警")
+    @ResponseBody
+    @RequestMapping(value={"cancelAlarm"}, method= RequestMethod.POST)
+    public String cancelAlarm(@ApiParam(required=true, name="roomId", value="住房ID")@RequestParam(name = "roomId")String roomId
+					    		) throws Exception {
+    	JSONObject json = new JSONObject();
+    	UMRoom room = new UMRoom();
+    	room = roomService.getRoom(roomId);
+    	Map<String,Object> paramCommunitySafetyInfo = new HashMap<String,Object>();
+    	paramCommunitySafetyInfo.put("comId", room.getComId());
+    	paramCommunitySafetyInfo.put("brandId", "1");
+		List<RSCommunitySafetyInfo> communitySafetyInfoList = communitySafetyInfoService.getList(paramCommunitySafetyInfo);
+		String appKey = communitySafetyInfoList.get(0).getAppKey();
+		String secret = communitySafetyInfoList.get(0).getAppSecret();
+    	String adminAccessToken = YSUtils.getAdminAccessToken(appKey, secret);
+    	boolean isOk = true;
+    	RSDevice device = new RSDevice();
+    	device.setRoomId(roomId);
+    	List<RSDevice> list = deviceService.getList(device);
+    	
+    	for(RSDevice deviceEntity : list){
+    		if("1".equals(deviceEntity.getBrandId())){
+	    		StringBuffer sb = new StringBuffer();
+	    		RSYSParam param = JSON.parse(deviceEntity.getJson(),RSYSParam.class);
+	    		HttpSendShort.sendStrOfPost("https://open.ys7.com/api/lapp/detector/cancelAlarm", "accessToken="+adminAccessToken+"&deviceSerial="+param.getDeviceSerial(), "", sb);
+	    		JSONObject resultJson = (JSONObject)JSON.parse(sb.toString());
+	    		if(!"60020".equals(resultJson.get("code"))&&!"200".equals(resultJson.get("code"))&&!"20007".equals(resultJson.get("code"))){
+	    			isOk = false;
+	    		}
+    		}else if("2".equals(deviceEntity.getBrandId())){
+    			StringBuffer sb = new StringBuffer();
+    			String token = HaoEnUtils.getTokenStr(room.getComId(),communitySafetyInfoService);
+		    	Map<String,String> headerMap = new HashMap<String,String>();
+		    	headerMap.put("Authorization","Bearer " + token);
+		    	sb.append(HaoEnUtils.getHaoEnApi(null, null, "/devices/"+deviceEntity.getId().split("@@@")[1]+"/mute", "POST", headerMap,room.getComId(),communitySafetyInfoService));
+	    		JSONObject resultJson = (JSONObject)JSON.parse(sb.toString());
+	    		if(1!=(resultJson.getInt("result",0))){
+	    			isOk = false;
+	    		}
+    		}
+    		
+    	}
+    	
+    	Map<String,Object> paramMap = new HashMap<String,Object>();
+    	paramMap.put("roomId", roomId);
+    	String cancelTime = DateUtils.format("yyyy-MM-dd HH:mm:ss");
+    	List<RSAlarmMessage> alarmMessageList = alarmMessageService.getList(paramMap);
+    	for(RSAlarmMessage alarmMessage : alarmMessageList){
+    		if(StringUtils.isNotBlank(alarmMessage.getCancelTime())){
+    			alarmMessage.setCancelTime(cancelTime);
+    			alarmMessageService.update(alarmMessage);
+    		}
+    	}
+    	if(isOk){
+	        json.put("msg", "成功");
+			json.put("status", "0");
+    	}else{
+	        json.put("msg", "失败");
+			json.put("status", "1");
+    	}
+    	return JSON.json(json);
+    }
+    
+    @ApiOperation(value="获取安防状态", notes="获取安防状态")
+    @ResponseBody
+    @RequestMapping(value={"getDefenceType"}, method= RequestMethod.GET)
+    public String getDefenceType(@ApiParam(required=true, name="roomId", value="住房ID")@RequestParam(name = "roomId")String roomId) throws Exception {
+    	JSONObject json = new JSONObject();
+    	
+    	json.put("data", RedisUtils.instance().get(roomId.getBytes())==null?1:RedisUtils.instance().get(roomId.getBytes()));
+    	json.put("msg", "成功");
+		json.put("status", "0");
+	}
+    
+    @ApiOperation(value="获取子账户token", notes="获取子账户token")
+    @ResponseBody
+    @RequestMapping(value={"getToken"}, method= RequestMethod.GET)
+    public String getToken(String accountId,
+    		String roomId) throws Exception {
+    	JSONObject json = new JSONObject();
+    	try{
+    		String appKey = "";
+    		String secret = "";
+    		try{
+	    		UMRoom room = new UMRoom();
+	        	room = roomService.getRoom(roomId);
+	        	Map<String,Object> paramCommunitySafetyInfo = new HashMap<String,Object>();
+	        	paramCommunitySafetyInfo.put("comId", room.getComId());
+	        	paramCommunitySafetyInfo.put("brandId", "1");
+	    		List<RSCommunitySafetyInfo> communitySafetyInfoList = communitySafetyInfoService.getList(paramCommunitySafetyInfo);
+	    		appKey = communitySafetyInfoList.get(0).getAppKey();
+	    		secret = communitySafetyInfoList.get(0).getAppSecret();
+	    	}catch(Exception e){
+	    		appKey = AppContext.getInstance().getProperty("appKey");
+	    		secret = AppContext.getInstance().getProperty("secret");
+	    	}
+	    	String token = YSUtils.getAdminAccessToken(appKey, secret);
+	    	if(StringUtils.isNotBlank(token)){
+		    	json.put("data", token);
+		    	json.put("msg", "成功");
+				json.put("status", "0");
+	    	}else{
+		    	json.put("msg", "未获取到token");
+				json.put("status", "1");
+	    	}
+    	}catch(Exception e){
+    		logger.info("获取萤石子账户token失败",e);
+	        json.put("msg", "失败");
+			json.put("status", "1");
+    	}
+    	return JSON.json(json);
+    }
+    
+    @ApiOperation(value="镜像翻转", notes="镜像翻转")
+    @ResponseBody
+    @RequestMapping(value={"mirror"}, method= RequestMethod.GET)
+    public String mirror(@ApiParam(required=true, name="roomId", value="住房ID")@RequestParam(required=true,name = "roomId")String roomId,
+    		@ApiParam(required=true, name="deviceSerial", value="设备序列号")@RequestParam(required=true,name = "deviceSerial")String deviceSerial
+    		) throws Exception {
+    	JSONObject json = new JSONObject();
+    	try{
+    		UMRoom room = new UMRoom();
+        	room = roomService.getRoom(roomId);
+        	Map<String,Object> paramCommunitySafetyInfo = new HashMap<String,Object>();
+        	paramCommunitySafetyInfo.put("comId", room.getComId());
+        	paramCommunitySafetyInfo.put("brandId", "1");
+    		List<RSCommunitySafetyInfo> communitySafetyInfoList = communitySafetyInfoService.getList(paramCommunitySafetyInfo);
+    		String appKey = communitySafetyInfoList.get(0).getAppKey();
+    		String secret = communitySafetyInfoList.get(0).getAppSecret();
+        	String adminAccessToken = YSUtils.getAdminAccessToken(appKey, secret);
+	    	StringBuffer sb = new StringBuffer();
+	    	HttpSendShort.sendStrOfPost("https://open.ys7.com/api/lapp/device/camera/list", "accessToken="+adminAccessToken+"&deviceSerial="+deviceSerial, "", sb);
+	    	JSONObject job = new JSONObject();
+	    	job=(JSONObject)JSON.parse(sb.toString());
+	    	sb.setLength(0);
+	    	JSONArray array = job.getArray("data");
+	    	for(int i = 0 ; i < array.length() ; i ++){
+	    		String channelNo = "";
+	    		try{
+	    			JSONObject object = array.getObject(i);
+	    			channelNo = object.getString("channelNo");
+		    		HttpSendShort.sendStrOfPost("https://open.ys7.com/api/lapp/device/ptz/mirror", "accessToken="+adminAccessToken+"&deviceSerial="+deviceSerial+"&command="+2+"&channelNo="+channelNo, "", sb);
+	    		}catch(Exception e){
+	    			logger.info("镜像翻转出错！！！"+roomId+"-----"+deviceSerial+"--------"+channelNo,e);
+	    		}
+	    	}
+	    	json.put("msg", "镜像翻转成功");
+			json.put("status", "0");
+    	}catch(Exception e){
+    		logger.info("镜像翻转出错！！！",e);
+    		json.put("msg", "镜像翻转出错");
+			json.put("status", "1");
+    	}
+    	return JSON.json(json);
+    }
+    
+    @ApiOperation(value="设置全天录像开关", notes="设置全天录像开关")
+    @ResponseBody
+    @RequestMapping(value={"setRecord"}, method= RequestMethod.GET)
+    public String setRecord(@ApiParam(required=true, name="roomId", value="住房ID")@RequestParam(required=true,name = "roomId")String roomId,
+    		@ApiParam(required=true, name="deviceSerial", value="设备序列号")@RequestParam(required=true,name = "deviceSerial")String deviceSerial,
+    		@ApiParam(required=true, name="enable", value="0-关闭，1-开启")@RequestParam(required=true,name = "enable")String enable
+    		) throws Exception {
+    	JSONObject json = new JSONObject();
+    	try{
+    		UMRoom room = new UMRoom();
+        	room = roomService.getRoom(roomId);
+        	Map<String,Object> paramCommunitySafetyInfo = new HashMap<String,Object>();
+        	paramCommunitySafetyInfo.put("comId", room.getComId());
+        	paramCommunitySafetyInfo.put("brandId", "1");
+    		List<RSCommunitySafetyInfo> communitySafetyInfoList = communitySafetyInfoService.getList(paramCommunitySafetyInfo);
+    		String appKey = communitySafetyInfoList.get(0).getAppKey();
+    		String secret = communitySafetyInfoList.get(0).getAppSecret();
+        	String adminAccessToken = YSUtils.getAdminAccessToken(appKey, secret);
+	    	StringBuffer sb = new StringBuffer();
+	    	HttpSendShort.sendStrOfPost("https://open.ys7.com/api/lapp/device/fullday/record/switch/set", "accessToken="+adminAccessToken+"&deviceSerial="+deviceSerial+"&enable="+enable, "", sb);
+	    	JSONObject job = new JSONObject();
+	    	job=(JSONObject)JSON.parse(sb.toString());
+	    	if("200".equals(job.getString("code"))){
+		    	json.put("msg", "操作成功");
+				json.put("status", "0");
+	    	}else if("60020".equals(job.getString("code"))){
+	    		json.put("msg", "操作失败,摄像头不支持！");
+				json.put("status", "1");
+	    	}else if("60022".equals(job.getString("code"))){
+	    		json.put("msg", "操作失败,已是当前状态！");
+				json.put("status", "1");
+	    	}else{
+	    		json.put("msg", "操作失败");
+				json.put("status", "1");
+	    	}
+    	}catch(Exception e){
+    		logger.info("设置全天录像开关操作失败！！！"+roomId+"------"+deviceSerial+"------"+enable,e);
+    		json.put("msg", "操作失败");
+			json.put("status", "1");
+    	}
+    	return JSON.json(json);
+    }
+    
+    @ApiOperation(value="获取全天录像开关状态", notes="获取全天录像开关状态")
+    @ResponseBody
+    @RequestMapping(value={"getRecordStatus"}, method= RequestMethod.GET)
+    public String getRecordStatus(@ApiParam(required=true, name="roomId", value="住房ID")@RequestParam(required=true,name = "roomId")String roomId,
+    		@ApiParam(required=true, name="deviceSerial", value="设备序列号")@RequestParam(required=true,name = "deviceSerial")String deviceSerial,
+    		@ApiParam(required=true, name="enable", value="0-关闭，1-开启")@RequestParam(required=true,name = "enable")String enable
+    		) throws Exception {
+    	JSONObject json = new JSONObject();
+    	try{
+    		UMRoom room = new UMRoom();
+        	room = roomService.getRoom(roomId);
+        	Map<String,Object> paramCommunitySafetyInfo = new HashMap<String,Object>();
+        	paramCommunitySafetyInfo.put("comId", room.getComId());
+        	paramCommunitySafetyInfo.put("brandId", "1");
+    		List<RSCommunitySafetyInfo> communitySafetyInfoList = communitySafetyInfoService.getList(paramCommunitySafetyInfo);
+    		String appKey = communitySafetyInfoList.get(0).getAppKey();
+    		String secret = communitySafetyInfoList.get(0).getAppSecret();
+        	String adminAccessToken = YSUtils.getAdminAccessToken(appKey, secret);
+	    	StringBuffer sb = new StringBuffer();
+	    	HttpSendShort.sendStrOfPost("https://open.ys7.com/api/lapp/device/fullday/record/switch/status", "accessToken="+adminAccessToken+"&deviceSerial="+deviceSerial, "", sb);
+	    	JSONObject job = new JSONObject();
+	    	job=(JSONObject)JSON.parse(sb.toString());
+	    	if("200".equals(job.getString("code"))){
+	    		json.put("data", job.getObject("data"));
+		    	json.put("msg", "操作成功");
+				json.put("status", "0");
+	    	}else if("60020".equals(job.getString("code"))){
+	    		json.put("msg", "操作失败,摄像头不支持！");
+				json.put("status", "1");
+	    	}else{
+	    		json.put("msg", "操作失败");
+				json.put("status", "1");
+	    	}
+    	}catch(Exception e){
+    		logger.info("设置全天录像开关操作失败！！！"+roomId+"------"+deviceSerial+"------"+enable,e);
+    		json.put("msg", "操作失败");
+			json.put("status", "1");
+    	}
+    	return JSON.json(json);
+    }
+    
+    public byte[] str16toByte(String content){
+    	String[] contents = new String[content.length()/2];
+    	byte[] bytes=new byte[contents.length];
+    	for(int i=0;i<content.length()/2;i++){
+    		contents[i] = content.substring(i*2, (i+1)*2);
+    	}
+    	for(int i = 0;i < contents.length;i ++){
+    		if(!StringUtils.isBlank(contents[i])){
+    			bytes[i] = (byte)Integer.parseInt(contents[i],16);
+    		}
+    	}
+    	return bytes;
+    }
+    
+}

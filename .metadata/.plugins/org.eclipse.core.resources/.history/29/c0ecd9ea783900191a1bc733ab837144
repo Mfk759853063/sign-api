@@ -1,0 +1,14 @@
+#socketIoIp=123.56.140.198
+#socketIoIp=10.10.10.109
+socketIoIp=10.0.1.20
+socketIoPort=9092
+nwsocketPort=8233
+socketPort=8234
+socketAppPort=8235
+heartBeatTimeoutSecs=25
+#PM\u63A5\u53E3
+pmUrl=http://www.pm25.in/api/querys/aqi_details.json
+pmContent=city=chongqing&token=5j1znBVAsnSf5xQyNQyq&stations=no
+#\u6E29\u6E7F\u5EA6\u63A5\u53E3
+tempUrl=http://api.yytianqi.com/observe
+tempContent=city=CH040100&key=4qo1pshunuiogw53

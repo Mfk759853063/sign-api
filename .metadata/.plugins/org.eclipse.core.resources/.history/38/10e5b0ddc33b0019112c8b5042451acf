@@ -1,0 +1,224 @@
+package com.porui.hjl.app.device.service;
+
+import java.util.ArrayList;
+import java.util.Calendar;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Timer;
+import java.util.TimerTask;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
+import com.alibaba.dubbo.common.json.JSON;
+import com.alibaba.dubbo.common.json.JSONArray;
+import com.alibaba.dubbo.common.json.JSONObject;
+import com.porui.hjl.app.crestron.entity.APPPosition;
+import com.porui.hjl.app.crestron.service.IAppService;
+import com.porui.hjl.app.crestron.service.ISafetyPositionService;
+import com.porui.hjl.app.device.dao.interfaces.INewApp;
+import com.porui.hjl.app.device.socketServer.mina.CentralSocketServer;
+import com.porui.hjl.app.device.socketServer.mina.NewCentralSokectServer;
+import com.porui.hjl.app.device.socketServer.socketio.TabletsSocketServer;
+import com.porui.hjl.commons.security.MD5;
+import com.porui.hjl.commons.utils.StringUtils;
+
+/**
+ * Created by tablv on 2017-09-23.
+ * 
+ * @Description:类的作用
+ */
+@Service("appService")
+public class NewAppService implements IAppService {
+
+	private Logger logger = LoggerFactory.getLogger(this.getClass());
+
+	private static final long periodDay = 24 * 60 * 60 * 1000;
+	
+	private static HashMap<String, Timer> timers=new HashMap<>();
+
+	@Autowired
+    private INewApp newAppDao;
+	
+	@Autowired
+	private ISafetyPositionService service;
+	
+	/**
+	 * @param mac
+	 * @param bytes
+	 * @return
+	 * @throws Exception
+	 * 
+	 */
+
+	@Override
+	public String sentToCenter(String mac, byte[] bytes) throws Exception {
+		String result = "发送失败";
+		try{
+			//操作记录
+			String content = MD5.byteArrayToHexString(bytes).toUpperCase();
+			if(content.startsWith("AA55FF")){
+				
+			}
+		}catch(Exception e){
+			logger.info("",e);
+		}
+		try {
+			if (CentralSocketServer.getInstance(null).sendMessage(mac, bytes)) {
+				result = "发送成功";
+			}
+		} catch (Exception e) {
+			logger.error("== sentToCenter Exception ==", e);
+		}
+		return result;
+	}
+	
+	@Override
+	public String sentToCenter(String mac, String content) throws Exception {
+		String result = "发送失败";
+		try{
+			//操作记录
+			if(content.toUpperCase().startsWith("AA55FF")){
+				
+			}
+		}catch(Exception e){
+			logger.info("",e);
+		}
+		try {
+			if (NewCentralSokectServer.getInstance().sendMessage(mac, content)) {
+				result = "发送成功";
+			}
+		} catch (Exception e) {
+			logger.error("== sentToCenter Exception ==", e);
+		}
+		return result;
+	}
+	
+	@Override
+	public boolean isExsitClient(String mac) throws Exception {
+		return CentralSocketServer.getInstance(null).isExsitClient(mac);
+	}
+
+	/**
+	 * @param mac
+	 * @param position
+	 * @param content
+	 * @return
+	 * @throws Exception
+	 * 
+	 */
+	@SuppressWarnings("unchecked")
+	@Override
+	public boolean sentToCenterTimer(String mac, String position, String content) throws Exception {
+		boolean result=false;
+		try {			
+			CentralSocketServer centralSocketServer = CentralSocketServer.getInstance(null);
+			String roomname = MD5.byteArrayToHexString(mac.getBytes());
+			if(centralSocketServer.isExsitClient(roomname)){
+				Calendar calendar = Calendar.getInstance();  
+	     		JSONArray jlist = (JSONArray)JSON.parse(content);				
+				for (int i = 0; i < jlist.length(); i++) {
+					JSONObject job = jlist.getObject(i);
+					Map<String, String> map = JSON.parse(JSON.json(job), Map.class);
+					String dateStr = map.get("date");
+					String[] dateStrList = dateStr.split(":");
+					calendar.set(Calendar.HOUR_OF_DAY, Integer.valueOf(dateStrList[0])); // 凌晨1点
+					calendar.set(Calendar.MINUTE, Integer.valueOf(dateStrList[1]));
+					calendar.set(Calendar.SECOND, 0);
+					Timer timer = new Timer();
+					timer.schedule(new TimerTask() {
+						@Override
+						public void run() {
+							try {
+								centralSocketServer.sendMessage(mac, str16toByte(map.get("msg")));
+							} catch (Exception e) {
+								logger.error("TimerTask Exception send fail....", e);
+							}
+						}
+					}, calendar.getTime(), periodDay);
+					timers.put(roomname + position, timer);
+				}
+				result=true;				
+			}else{
+				logger.info("sentToCenterTimer roomname not exsit :"+roomname);
+			}		
+		} catch (Exception e) {
+			result=false;
+			logger.error("== sentToCenterTimer Exception ==", e);
+		}
+		
+		return result;
+	}
+
+	/**
+	 * @param mac
+	 * @param position
+	 * @return
+	 * @throws Exception
+	 * 
+	 */
+
+	@Override
+	public boolean closeTimer(String mac, String position) throws Exception {
+		try{
+			timers.get(MD5.byteArrayToHexString(mac.getBytes())+position).cancel();
+ 	     	return true;
+ 	     }catch(Exception e){
+ 	    	logger.error("== closeTimer Exception ==", e);
+ 	     }
+		return false;
+	}
+
+	/**
+	 * @param mac
+	 * @param data
+	 * @return
+	 * @throws Exception
+	 * 
+	 */
+
+	@Override
+	public String sentToPad(String mac, String data) throws Exception {
+		String result = "发送失败";
+		try {
+			if (TabletsSocketServer.getInstance().sendMessage(mac, "hjlpad", data)) {
+				result = "发送成功";
+			}
+		} catch (Exception e) {
+			logger.error("== sentToCenter Exception ==", e);
+		}
+		return result;
+	}
+
+	private byte[] str16toByte(String content) {
+		String[] contents = new String[content.length() / 2];
+		byte[] bytes = new byte[contents.length];
+		for (int i = 0; i < content.length() / 2; i++) {
+			contents[i] = content.substring(i * 2, (i + 1) * 2);
+		}
+		for (int i = 0; i < contents.length; i++) {
+			if (!StringUtils.isBlank(contents[i])) {
+				bytes[i] = (byte) Integer.parseInt(contents[i], 16);
+			}
+		}
+		return bytes;
+	}
+
+	@Override
+	public List<APPPosition> getPositionList(String mac) throws Exception {
+		// TODO Auto-generated method stub
+		Map<String,Object> param = new HashMap<String,Object>();
+		param.put("mac", mac);
+		return newAppDao.getList(param);
+	}
+
+	@Override
+	public List<Map<String, String>> getHikeDeviceMac(String mac) throws Exception {
+		// TODO Auto-generated method stub
+		return newAppDao.getHikeDeviceMac(mac);
+	}
+	
+}
