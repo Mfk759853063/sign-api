@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.vbn.sign.mapper.ActivityMapper">
+
+<resultMap type="Activity" id="BaseResultMap">
+	<id column="id" property="id" />
+	<result column="activity_name" property="activityName" />
+	<result column="activity_start_time" property="activityStartTime"  />
+	<result column="activity_end_time" property="activityEndTime"/>
+	<result column="activity_desc" property="activityDesc"/>
+	<result column="extra" property="extra" />
+	<result column="status" property="status"/>
+</resultMap>
+
+<select id="totalCount"
+     resultType="long">
+  SELECT count(1) FROM t_activity 
+</select>
+
+<select id="allActivitys" resultMap="BaseResultMap">
+	select * from t_activity
+</select>
+
+</mapper>
