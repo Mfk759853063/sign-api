@@ -41,7 +41,7 @@ public class ActivityController {
 				result = activityService.save(activity);
 			}
 			if (result == 1) {
-				return JSONResult.fillResultString(0, "成功", null);
+				return JSONResult.fillResultString(0, "成功", activity.getId());
 			}
 			return JSONResult.fillResultString(0, "失败", null); 
 		} catch (Exception e) {
@@ -78,4 +78,22 @@ public class ActivityController {
 			return JSONResult.fillResultString(0, "失败", null); 
 		}
 	}
+	
+	@RequestMapping(value = "/delete", method = RequestMethod.GET)
+	private JSONObject delete(@RequestParam(name = "id", required = true) String id) throws Exception {
+		try {
+			Integer result = 0;
+			Activity activity = activityService.queryById(id);
+			activity.setStatus(9);
+			result = activityService.updateSelective(activity);
+			if (result == 1) {
+				return JSONResult.fillResultString(0, "成功", null);
+			}
+			return JSONResult.fillResultString(0, "失败", null); 
+		} catch (Exception e) {
+			// TODO: handle exception
+			e.printStackTrace();
+			return JSONResult.fillResultString(0, "失败", null); 
+		}
+	} 
 }

@@ -17,11 +17,11 @@ public class ActivityService extends BaseService<Activity>  {
 	@Autowired
 	private ActivityMapper activityMaper;
 	
-	public long totalCount() {
+	public long totalCount() throws Exception {
 		return activityMaper.totalCount();
 	}
 	
-	public List<Activity>allActivitys() {
+	public List<Activity>allActivitys() throws Exception {
 		return activityMaper.allActivitys();
 	}
 	

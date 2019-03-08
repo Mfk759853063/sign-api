@@ -11,9 +11,9 @@ import com.vbn.sign.model.Activity;
 @Mapper
 public interface ActivityMapper extends MyMapper<Activity>  {
 
-	public long totalCount();
+	public long totalCount() throws Exception;
 	
-	List<Activity>allActivitys();
+	List<Activity>allActivitys() throws Exception;
 	
 	
 }
