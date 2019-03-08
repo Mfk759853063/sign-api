@@ -10,6 +10,7 @@
 	<result column="activity_desc" property="activityDesc"/>
 	<result column="extra" property="extra" />
 	<result column="status" property="status"/>
+	<result column="create_time" property="createTime"/>
 </resultMap>
 
 <select id="totalCount"

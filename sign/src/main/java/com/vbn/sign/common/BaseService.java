@@ -10,6 +10,7 @@ import com.github.pagehelper.PageInfo;
 
 import tk.mybatis.mapper.common.Mapper;
 import tk.mybatis.mapper.entity.Example;
+import tk.mybatis.orderbyhelper.OrderByHelper;
 
 
 /**
@@ -44,12 +45,26 @@ public abstract class BaseService<T>  {
         return this.mapper.selectCount(param);
     }
     
+    // 排序 eg: "id desc"
+    public List<T>queryListByWhere(T param, String orderBy) {
+    	OrderByHelper.orderBy(orderBy);
+    	return this.mapper.select(param);
+    }
+    
     //分頁
     public PageInfo<T> queryPageListByWhere(T param,Integer page,Integer rows){
         PageHelper.startPage(page, rows);
         List<T> list = this.queryListByWhere(param);
         return new PageInfo<T>(list);
 
+    }
+    
+    // 分頁排序 eg: "id desc"
+    public PageInfo<T>queryPageListByWhere(T param, String orderBy,Integer page,Integer rows) {
+    	
+    	PageHelper.startPage(page, rows, orderBy);
+    	List<T> list = this.queryListByWhere(param,orderBy);
+        return new PageInfo<T>(list);
     }
     
     //查詢一條記錄

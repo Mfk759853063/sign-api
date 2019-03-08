@@ -1,6 +1,5 @@
 package com.vbn.sign.model;
 
-import java.io.Serializable;
 
 import javax.persistence.Id;
 import javax.persistence.Table;
@@ -9,7 +8,7 @@ import lombok.Data;
 
 @Data
 @Table(name="t_activity")
-public class Activity implements Serializable {
+public class Activity extends BaseEntity {
 
 	@Id
 	private String id;
@@ -21,9 +20,5 @@ public class Activity implements Serializable {
 	private String activityEndTime;
 	
 	private String activityDesc;
-	
-	private String extra;
-	
-	private Integer status;
 	
 }
