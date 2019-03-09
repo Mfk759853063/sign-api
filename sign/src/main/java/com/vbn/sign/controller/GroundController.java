@@ -13,23 +13,17 @@ import org.springframework.web.bind.annotation.RestController;
 import com.alibaba.fastjson.JSONObject;
 import com.github.pagehelper.PageInfo;
 import com.vbn.sign.common.JSONResult;
-import com.vbn.sign.model.Activity;
 import com.vbn.sign.model.Ground;
-import com.vbn.sign.model.SignRule;
-import com.vbn.sign.service.ActivityService;
-import com.vbn.sign.service.GroundService;
+import com.vbn.sign.service.IGroundService;
 import com.vbn.sign.util.DateUtils;
 import com.vbn.sign.util.StringUtils;
 
-import lombok.extern.slf4j.Slf4j;
-
 @RestController
 @RequestMapping("/ground")
-@Slf4j
 public class GroundController {
 	
 	@Autowired
-	GroundService groundService;
+	IGroundService groundService;
 	
 	@RequestMapping(value = "/addOrUpdate", method = RequestMethod.POST)
 	private JSONObject add(@RequestBody Ground ground) throws Exception {

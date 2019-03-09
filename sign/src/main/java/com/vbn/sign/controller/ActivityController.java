@@ -2,7 +2,6 @@ package com.vbn.sign.controller;
 
 import java.util.Date;
 import java.util.List;
-
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -14,19 +13,16 @@ import com.alibaba.fastjson.JSONObject;
 import com.github.pagehelper.PageInfo;
 import com.vbn.sign.common.JSONResult;
 import com.vbn.sign.model.Activity;
-import com.vbn.sign.service.ActivityService;
+import com.vbn.sign.service.IActivityService;
 import com.vbn.sign.util.DateUtils;
 import com.vbn.sign.util.StringUtils;
 
-import lombok.extern.slf4j.Slf4j;
-
 @RestController
 @RequestMapping("/activity")
-@Slf4j
 public class ActivityController {
 	
 	@Autowired
-	ActivityService activityService;
+	IActivityService activityService;
 	
 	@RequestMapping(value = "/addOrUpdate", method = RequestMethod.POST)
 	private JSONObject add(@RequestBody Activity activity) throws Exception {

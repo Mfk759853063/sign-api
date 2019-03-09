@@ -13,24 +13,17 @@ import org.springframework.web.bind.annotation.RestController;
 import com.alibaba.fastjson.JSONObject;
 import com.github.pagehelper.PageInfo;
 import com.vbn.sign.common.JSONResult;
-import com.vbn.sign.model.Activity;
-import com.vbn.sign.model.Ground;
 import com.vbn.sign.model.SignRule;
-import com.vbn.sign.service.ActivityService;
-import com.vbn.sign.service.GroundService;
-import com.vbn.sign.service.SignRuleService;
+import com.vbn.sign.service.ISignRuleService;
 import com.vbn.sign.util.DateUtils;
 import com.vbn.sign.util.StringUtils;
 
-import lombok.extern.slf4j.Slf4j;
-
 @RestController
 @RequestMapping("/signRule")
-@Slf4j
 public class SignRuleController {
 	
 	@Autowired
-	SignRuleService signRuleService;
+	ISignRuleService signRuleService;
 	
 	@RequestMapping(value = "/addOrUpdate", method = RequestMethod.POST)
 	private JSONObject add(@RequestBody SignRule signRule) throws Exception {

@@ -17,11 +17,11 @@ import com.vbn.sign.model.Activity;
 import com.vbn.sign.model.Ground;
 import com.vbn.sign.model.Sign;
 import com.vbn.sign.model.SignRule;
-import com.vbn.sign.service.ActivityService;
-import com.vbn.sign.service.GroundService;
-import com.vbn.sign.service.SignRuleService;
-import com.vbn.sign.service.SignService;
-import com.vbn.sign.service.UserService;
+import com.vbn.sign.service.IActivityService;
+import com.vbn.sign.service.IGroundService;
+import com.vbn.sign.service.ISignRuleService;
+import com.vbn.sign.service.ISignService;
+import com.vbn.sign.service.IUserService;
 import com.vbn.sign.util.DateUtils;
 import com.vbn.sign.util.StringUtils;
 
@@ -29,23 +29,23 @@ import lombok.extern.slf4j.Slf4j;
 
 @RestController
 @RequestMapping("/sign")
-@Slf4j
+
 public class SignController {
 	
 	@Autowired
-	SignService signService;
+	ISignService signService;
 	
 	@Autowired
-	GroundService groundService;
+	IGroundService groundService;
 	
 	@Autowired
-	SignRuleService signRuleService;
+	ISignRuleService signRuleService;
 	
 	@Autowired
-	UserService userService;
+	IUserService userService;
 	
 	@Autowired
-	ActivityService activityService;
+	IActivityService activityService;
 	
 	@RequestMapping(value = "/addOrUpdate", method = RequestMethod.POST)
 	private JSONObject add(@RequestBody Sign sign) throws Exception {
