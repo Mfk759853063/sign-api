@@ -1,4 +1,4 @@
-package com.vbn.sign.controller;
+package com.vbn.sign.controller.RestApi;
 
 import java.util.Date;
 import java.util.List;
