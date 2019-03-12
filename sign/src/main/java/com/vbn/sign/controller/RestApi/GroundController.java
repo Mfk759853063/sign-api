@@ -34,7 +34,7 @@ public class GroundController {
 			} else {
 				ground.setId(StringUtils.newGUID());
 				ground.setStatus(1);
-				ground.setCreateTime(String.valueOf(DateUtils.date2TimeStamp(new Date())));
+				ground.setCreateTime(DateUtils.date2TimeStamp(new Date()));
 				result = groundService.save(ground);
 			}
 			if (result == 1) {

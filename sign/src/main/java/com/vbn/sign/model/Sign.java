@@ -20,7 +20,7 @@ public class Sign extends BaseEntity {
 	
 	private String signRuleId;
 	
-	private String signTime;
+	private Long signTime;
 
 	private String userId;
 	

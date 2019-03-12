@@ -15,9 +15,9 @@ public class Activity extends BaseEntity {
 	
 	private String activityName;
 	
-	private String activityStartTime;
+	private Long activityStartTime;
 	
-	private String activityEndTime;
+	private Long activityEndTime;
 	
 	private String activityDesc;
 	

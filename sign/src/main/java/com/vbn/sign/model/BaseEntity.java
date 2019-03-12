@@ -13,7 +13,7 @@ public class BaseEntity implements Serializable {
 	 */
 	private static final long serialVersionUID = 1L;
 	
-	private String createTime;
+	private Long createTime;
 	
 	private String extra;
 	

@@ -16,9 +16,9 @@ public class SignRule extends BaseEntity {
 	
 	private String signRuleName;
 	
-	private String signStartTime;
+	private Long signStartTime;
 	
-	private String signEndTime;
+	private Long signEndTime;
 	
 	private Integer userSignTimes;
 }

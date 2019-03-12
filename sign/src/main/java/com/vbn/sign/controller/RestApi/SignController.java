@@ -73,11 +73,11 @@ public class SignController {
 							long signEndTimeStamp = Long.valueOf(signRule.getSignEndTime());
 							if (signTimeStamp >= signStartTimeStamp && signTimeStamp <= signEndTimeStamp && userSignsCount < signRule.getUserSignTimes()) {
 								sign.setId(StringUtils.newGUID());
-								sign.setSignTime(String.valueOf(DateUtils.date2TimeStamp(new Date())));
+								sign.setSignTime(DateUtils.date2TimeStamp(new Date()));
 								sign.setActivityId(ground.getActivityId());
 								sign.setSignRuleId(signRule.getId());
 								sign.setStatus(1);
-								sign.setCreateTime(String.valueOf(DateUtils.date2TimeStamp(new Date())));
+								sign.setCreateTime(DateUtils.date2TimeStamp(new Date()));
 								signService.save(sign);
 								result = 0;
 								msgString = "签到成功";

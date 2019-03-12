@@ -33,7 +33,7 @@ public class ActivityController {
 			} else {
 				activity.setId(StringUtils.newGUID());
 				activity.setStatus(1);
-				activity.setCreateTime(String.valueOf(DateUtils.date2TimeStamp(new Date())));
+				activity.setCreateTime(DateUtils.date2TimeStamp(new Date()));
 				result = activityService.save(activity);
 			}
 			if (result == 1) {

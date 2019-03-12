@@ -34,7 +34,7 @@ public class SignRuleController {
 			} else {
 				signRule.setId(StringUtils.newGUID());
 				signRule.setStatus(1);
-				signRule.setCreateTime(String.valueOf(DateUtils.date2TimeStamp(new Date())));
+				signRule.setCreateTime(DateUtils.date2TimeStamp(new Date()));
 				result = signRuleService.save(signRule);
 			}
 			if (result == 1) {
