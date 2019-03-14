@@ -5,7 +5,7 @@
 # Log file
 *.log
 
-/web
+/web/admin/node_modules/
 # BlueJ files
 *.ctxt
 
