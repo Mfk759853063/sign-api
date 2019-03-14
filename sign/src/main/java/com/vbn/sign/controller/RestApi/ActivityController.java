@@ -39,11 +39,31 @@ public class ActivityController {
 			if (result == 1) {
 				return JSONResult.fillResultString(0, "成功", activity.getId());
 			}
-			return JSONResult.fillResultString(0, "失败", null); 
+			return JSONResult.fillResultString(1, "失败", null); 
 		} catch (Exception e) {
 			// TODO: handle exception
 			e.printStackTrace();
-			return JSONResult.fillResultString(0, "失败", null); 
+			return JSONResult.fillResultString(1, "失败", null); 
+		}
+	}
+	
+	@RequestMapping(value = "/info", method = RequestMethod.GET)
+	private JSONObject info(@RequestParam(name = "id", required = true) String id) throws Exception {
+		try {
+			Activity activity = new Activity();
+			activity.setStatus(1);
+			activity.setId(id);
+			Activity find = activityService.queryOne(activity);
+			if (find != null) {
+				return JSONResult.fillResultString(0, "成功", find);
+			} else {
+				return JSONResult.fillResultString(1, "不存在", null); 
+			}
+			
+		} catch (Exception e) {
+			// TODO: handle exception
+			e.printStackTrace();
+			return JSONResult.fillResultString(1, "失败", null); 
 		}
 	}
 	
@@ -57,7 +77,7 @@ public class ActivityController {
 		} catch (Exception e) {
 			// TODO: handle exception
 			e.printStackTrace();
-			return JSONResult.fillResultString(0, "失败", null); 
+			return JSONResult.fillResultString(1, "失败", null); 
 		}
 	}
 	
@@ -71,7 +91,7 @@ public class ActivityController {
 		} catch (Exception e) {
 			// TODO: handle exception
 			e.printStackTrace();
-			return JSONResult.fillResultString(0, "失败", null); 
+			return JSONResult.fillResultString(1, "失败", null); 
 		}
 	}
 	
@@ -85,11 +105,11 @@ public class ActivityController {
 			if (result == 1) {
 				return JSONResult.fillResultString(0, "成功", null);
 			}
-			return JSONResult.fillResultString(0, "失败", null); 
+			return JSONResult.fillResultString(1, "失败", null); 
 		} catch (Exception e) {
 			// TODO: handle exception
 			e.printStackTrace();
-			return JSONResult.fillResultString(0, "失败", null); 
+			return JSONResult.fillResultString(1, "失败", null); 
 		}
 	} 
 }

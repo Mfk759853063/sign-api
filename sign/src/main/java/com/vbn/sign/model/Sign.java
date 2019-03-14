@@ -16,7 +16,11 @@ public class Sign extends BaseEntity {
 	
 	private String activityId;
 	
+	private Activity activity;
+	
 	private String groundId;
+	
+	private Ground ground;
 	
 	private String signRuleId;
 	

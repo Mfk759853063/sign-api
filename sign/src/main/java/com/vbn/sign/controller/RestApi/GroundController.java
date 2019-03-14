@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.alibaba.fastjson.JSONObject;
 import com.github.pagehelper.PageInfo;
 import com.vbn.sign.common.JSONResult;
+import com.vbn.sign.model.Activity;
 import com.vbn.sign.model.Ground;
 import com.vbn.sign.service.IGroundService;
 import com.vbn.sign.util.DateUtils;
@@ -40,39 +41,61 @@ public class GroundController {
 			if (result == 1) {
 				return JSONResult.fillResultString(0, "成功", ground.getId());
 			}
-			return JSONResult.fillResultString(0, "失败", null); 
+			return JSONResult.fillResultString(1, "失败", null); 
 		} catch (Exception e) {
 			// TODO: handle exception
 			e.printStackTrace();
-			return JSONResult.fillResultString(0, "失败", null); 
+			return JSONResult.fillResultString(1, "失败", null); 
 		}
 	}
 	
 	@RequestMapping(value = "/list", method = RequestMethod.GET)
-	private JSONObject list() throws Exception {
+	private JSONObject list(@RequestParam(name="activityId", required = true) String activityId) throws Exception {
 		try {
 			Ground ground = new Ground();
+			ground.setActivityId(activityId);
 			ground.setStatus(1);
 			List<Ground>list = groundService.queryListByWhere(ground, "create_time desc");
 			return JSONResult.fillResultString(0, "成功", list); 
 		} catch (Exception e) {
 			// TODO: handle exception
 			e.printStackTrace();
-			return JSONResult.fillResultString(0, "失败", null); 
+			return JSONResult.fillResultString(1, "失败", null); 
 		}
 	}
 	
 	@RequestMapping(value = "/pageInfo", method = RequestMethod.GET)
-	private JSONObject pageInfo(@RequestParam(name="page", required = true) Integer page, @RequestParam(name="pageSize", required = true) Integer pageSize) throws Exception {
+	private JSONObject pageInfo(@RequestParam(name="page", required = true) Integer page, @RequestParam(name="pageSize", required = true) Integer pageSize, @RequestParam(name="activityId", required = true) String activityId) throws Exception {
 		try {
 			Ground ground = new Ground();
 			ground.setStatus(1);
+			ground.setActivityId(activityId);
 			PageInfo<Ground>list = groundService.queryPageListByWhere(ground, "create_time desc", page, pageSize);
 			return JSONResult.fillResultStringWithPageInfo(0, "成功", list); 
 		} catch (Exception e) {
 			// TODO: handle exception
 			e.printStackTrace();
-			return JSONResult.fillResultString(0, "失败", null); 
+			return JSONResult.fillResultString(1, "失败", null); 
+		}
+	}
+	
+	@RequestMapping(value = "/info", method = RequestMethod.GET)
+	private JSONObject info(@RequestParam(name = "id", required = true) String id) throws Exception {
+		try {
+			Ground ground = new Ground();
+			ground.setStatus(1);
+			ground.setId(id);
+			Ground find = groundService.queryOne(ground);
+			if (find != null) {
+				return JSONResult.fillResultString(0, "成功", find);
+			} else {
+				return JSONResult.fillResultString(1, "不存在", null); 
+			}
+			
+		} catch (Exception e) {
+			// TODO: handle exception
+			e.printStackTrace();
+			return JSONResult.fillResultString(1, "失败", null); 
 		}
 	}
 	
@@ -86,11 +109,11 @@ public class GroundController {
 			if (result == 1) {
 				return JSONResult.fillResultString(0, "成功", null);
 			}
-			return JSONResult.fillResultString(0, "失败", null); 
+			return JSONResult.fillResultString(1, "失败", null); 
 		} catch (Exception e) {
 			// TODO: handle exception
 			e.printStackTrace();
-			return JSONResult.fillResultString(0, "失败", null); 
+			return JSONResult.fillResultString(1, "失败", null); 
 		}
 	} 
 }

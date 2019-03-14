@@ -26,14 +26,16 @@ public class SystemUserController {
 		try {
 			user.setStatus(1);
 			SystemUser have = systemUserService.queryOne(user);
-			if (user != null) {
-				return JSONResult.fillResultString(0, "登录成功", have); 
+			if (have != null) {
+				return JSONResult.fillResultString(0, "登录成功", have);
+			} else {
+				return JSONResult.fillResultString(1, "失败", null); 
 			}
-			return JSONResult.fillResultString(0, "登录失败", null); 
+			 
 		} catch (Exception e) {
 			// TODO: handle exception
 			e.printStackTrace();
-			return JSONResult.fillResultString(0, "失败", null); 
+			return JSONResult.fillResultString(1, "失败", null); 
 		}
 	}
 

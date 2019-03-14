@@ -6,7 +6,7 @@ import javax.persistence.Table;
 import lombok.Data;
 
 @Data
-@Table(name="refinitiv_users")
+@Table(name="t_user")
 public class User extends BaseEntity {
 	@Id
 	private String id;
