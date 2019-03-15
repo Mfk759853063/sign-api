@@ -13,6 +13,4 @@
 
 ![eg3](http://pnb34w3ti.bkt.clouddn.com/WX20190315-104419@2x.png)
 
-![eg4](http://pnb34w3ti.bkt.clouddn.com/WX20190315-104444@2x.png)
-
 不想截图了，有需要的自己看吧。
